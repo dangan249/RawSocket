@@ -11,21 +11,23 @@ public class RawSocketClient{
 
 	RawSocket rSock = new RawSocket() ;
 
+	public void close() throws IOException {
+		this.rSock.close() ;
+	}
 	public static void main( String args[] ){
 		
 		RawSocketClient client = new RawSocketClient() ;
 		try{
 			client.rSock.open( PF_INET, RawSocket.getProtocolByName("tcp")) ;
 			System.out.println( client.rSock.getIPHeaderInclude() ) ;
+			client.close() ;
+
 		}
 		catch (SocketException ex){
 			System.out.println( ex.toString() ) ;
 		}
 		catch( IOException ex ){
 			System.out.println( ex.toString() ) ;
-		}
-		final{
-			client.rSock.close() ;
 		}
 	}
 }
