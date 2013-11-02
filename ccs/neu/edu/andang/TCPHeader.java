@@ -16,15 +16,17 @@ public class TCPHeader{
 
 	public TCPHeader(){
 		baseHeader = new byte[20] ;
+		byte12And13 = getBytes( 12 , 14 ) ;
+		zeroAll(baseHeader) ;
 	}
 
 	public TCPHeader( byte[] baseHeader ){
-		this.setHeader( baseHeader );
+		this.setBaseHeader( baseHeader );
 		byte12And13 = getBytes( 12 , 14 ) ;
 	}
 
 	// set the headers of a TCP packet ( not including optional fields )
-	public void setHeader( byte[] baseHeader ){
+	public void setBaseHeader( byte[] baseHeader ){
 		
 		if( baseHeader.length != BASE_HEADER_SIZE ){
 			throw new IllegalArgumentException("Header size should be 20 bytes.") ;
@@ -33,6 +35,18 @@ public class TCPHeader{
 		this.baseHeader = baseHeader ;
 		byte12And13 = getBytes( 12 , 14 ) ;
 
+	}
+
+	private void zeroAll( byte[] array){
+
+		for( int i = 0 ; i < array.length; i++ ){
+			array[i] = (byte) 0 ;
+		}
+
+	}
+
+	public byte[] getBaseHeader(){
+		return this.baseHeader ;
 	}
 
 	public void setOptions( byte[] options ){
@@ -58,8 +72,8 @@ public class TCPHeader{
 	// side-effect: change this.baseHeader
 	public void setDestinationPort( short destPort ){
 		
-		byte[] sourcePortBytes = ByteBuffer.allocate(2).putShort(destPort).array();
-		copyBytes( sourcePortBytes , 2 , 4 ) ;
+		byte[] destPortBytes = ByteBuffer.allocate(2).putShort(destPort).array();
+		copyBytes( destPortBytes , 2 , 4 ) ;
 
 	}
 
@@ -101,6 +115,9 @@ public class TCPHeader{
 	public void setHeaderLength( int length ){
 		
 		int numOf4ByteChunks = length / 4 ;
+
+		numOf4ByteChunks = numOf4ByteChunks << 4 ;
+		System.out.println( numOf4ByteChunks ) ;
 		copyBytes( new byte[]{ (byte) numOf4ByteChunks } ,12 , 13 ) ;
 	}
 
@@ -196,7 +213,7 @@ public class TCPHeader{
 		}
 
 		for( int i = from ; i < to ; i++ ){
-			dest[i] = source[i] ;
+			dest[i] = source[i - from] ;
 		}
 
 	}

@@ -1,25 +1,31 @@
 package ccs.neu.edu.andang ;
 
-import java.net.URL ;
-import java.net.InetAddress ;
+// Util 
+import java.util.Random ;
+
+// Exceptions:
 import java.net.SocketException ;
+import java.net.UnknownHostException ;
 import java.io.IOException ;
 
+// Networking:
+import java.net.URL ;
+import java.net.InetAddress ;
+import java.net.ServerSocket ;
 import com.savarese.rocksaw.net.RawSocket;
 import static com.savarese.rocksaw.net.RawSocket.PF_INET;
 
 public class RawSocketClient{
 
-	private RawSocket rSockSender ;
-	private RawSocket rSockReceiver ;
+	private RawSocket rSock ;
 
 /* TCP functionalities supported:
 
 Packet = IP Header + TCP Header + Data
 
--- Verify the checksums of incoming TCP packets
--- Generate correct checksums for outgoing packets.
--- Select a valid local port to send traffic on
+-- Verify the checksums of incoming TCP packets (how?)
+-- Generate correct checksums for outgoing packets. (IP)
+-- Select a valid local port to send traffic on (done)
 -- Perform the three-way handshake
 -- Handle connection teardown. 
 -- Handle sequence and acknowledgement numbers. 
@@ -36,20 +42,18 @@ Packet = IP Header + TCP Header + Data
 */
     private String remoteHost ;
     private int remotePort ;
+    private InetAddress remoteAddress ;
 
     // TODO: set up the sender and receiver raw socks
     public RawSocketClient( String remoteHost, int remotePort ){
-		this.host = host ;
-		this.port = port ;
-		// ...
+		this.remoteHost = remoteHost ;
+		this.remotePort = remotePort ;
     }
 
     // TODO: handling TCP teardown process
     public void disconnect(){
 		try{
-			// ...
-			this.rSockSender.close() ;
-			this.rSockReceiver.close() ;
+			this.rSock.close() ;
 		}
 		catch(IOException ex){
 			System.out.println( "Unable to disconnect: " + ex.toString() ) ;
@@ -64,14 +68,12 @@ Packet = IP Header + TCP Header + Data
 
 		URL destURL = new URL( this.remoteHost ) ;
 
-  	    InetAddress address = InetAddress.getByName( destURL.getHost() );
+  	    this.remoteAddress = InetAddress.getByName( destURL.getHost() );
 
-  	    if( address.isAnyLocalAddress() || address.isLoopbackAddress()
-  	     || address.isLinkLocalAddress() ){
+  	    if( remoteAddress.isAnyLocalAddress() || remoteAddress.isLoopbackAddress()
+  	     || remoteAddress.isLinkLocalAddress() ){
   	    	return false ;
   	    }
-
-  	    // ...
 
   	    return true ;
     }
@@ -79,28 +81,67 @@ Packet = IP Header + TCP Header + Data
    
     // send the message to the remote server that we connect with
     // return: the InputStream from the server
-    public InputStream sendMessage( String message ) throws IOException{
+    public void sendMessage( String message ) throws IOException{
+
+    	TCPPacket packet = new TCPPacket() ;
+    	packet.header.setSourcePort( (short) getAvailablePort() ) ;
+    	packet.header.setDestinationPort( (short) 80) ;
+
+    	packet.header.setSequenceNumber( 0 ) ;
+    	packet.header.setACKNumber( 0 ) ;
+
+    	packet.header.setHeaderLength( 20 ) ;
+    	packet.header.setSYN() ;
+
+
+    	this.rSock.write( this.remoteAddress , packet.header.getBaseHeader() ) ;
+    
 
     }	
 
-    boolean isIPSupported(){
-    	return client.rSockSender.getIPHeaderInclude() ;
+    boolean isIPSupported() throws SocketException {
+    	return this.rSock.getIPHeaderInclude() ;
     } 
 
 
+    // Strategy: pick a random port from [49152,65535]
+    // use ServerSocket to verify that it iss open
+    private int getAvailablePort() throws IOException {
+    	int port = 0;
+    	do {
+        	port = (new Random()).nextInt(65535 - 49152 + 1) + 49152;
+    	} while (!isPortAvailable(port));
+
+    	return port;
+	}
+
+	private boolean isPortAvailable( int port ) throws IOException {
+
+	    ServerSocket sock = null;
+	    try {
+	        sock = new ServerSocket(port);
+	        sock.setReuseAddress(true);
+	        return true;
+	    } catch ( IOException e) {
+	    	System.out.println( e.toString() ) ;
+	    } finally {
+	        if (ss != null) {
+	            sock.close();
+	        }
+	    }
+
+	    return false;
+	}
 
 
 
-
-
-
-
-/*
 	public static void main( String args[] ){
-		
-		RawSocketClient client = new RawSocketClient() ;
+				
 		try{
-
+			RawSocketClient client = new RawSocketClient( 
+				"http://www.ccs.neu.edu/home/cbw/4700/project4.html",80 ) ;
+			client.connect() ;
+			client.sendMessage( "" ) ;
 		}
 		catch (SocketException ex){
 			System.out.println( ex.toString() ) ;
@@ -109,5 +150,4 @@ Packet = IP Header + TCP Header + Data
 			System.out.println( ex.toString() ) ;
 		}
 	}
-	*/
 }

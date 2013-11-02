@@ -4,7 +4,13 @@ package ccs.neu.edu.andang ;
 // TCPPacket: represent a TCP  packet
 public class TCPPacket{
 
-	private TCPHeader header ;
+	TCPHeader header ;
 	private byte[] data ;
+
+	public TCPPacket(){
+		this.header = new TCPHeader() ; 
+	}
+
+
 
 }
