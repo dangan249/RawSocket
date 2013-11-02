@@ -38,7 +38,7 @@ Packet = IP Header + TCP Header + Data
     private int remotePort ;
 
     // TODO: set up the sender and receiver raw socks
-    public SocketClient( String remoteHost, int remotePort ){
+    public RawSocketClient( String remoteHost, int remotePort ){
 		this.host = host ;
 		this.port = port ;
 		// ...

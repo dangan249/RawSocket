@@ -16,6 +16,8 @@ CLASSES = \
         ./ccs/neu/edu/andang/HTTPRequest.java \
         ./ccs/neu/edu/andang/HTTPResponse.java \
         ./ccs/neu/edu/andang/SocketClient.java \
+        ./ccs/neu/edu/andang/TCPHeader.java \
+        ./ccs/neu/edu/andang/TCPPacket.java \
         ./ccs/neu/edu/andang/RawSocketClient.java 
 
 

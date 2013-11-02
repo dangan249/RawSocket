@@ -1,6 +1,7 @@
 package ccs.neu.edu.andang ;
 
 import java.nio.ByteBuffer ;
+import java.util.Arrays ;
 // TODO
 // TCPHeader: represent the header of a TCP packet
 // it also allow packets with optional fields
@@ -17,15 +18,15 @@ public class TCPHeader{
 		baseHeader = new byte[20] ;
 	}
 
-	public TCPHeader( bytes[] baseHeader ){
+	public TCPHeader( byte[] baseHeader ){
 		this.setHeader( baseHeader );
 		byte12And13 = getBytes( 12 , 14 ) ;
 	}
 
 	// set the headers of a TCP packet ( not including optional fields )
-	public void setHeader( bytes[] baseHeader ){
+	public void setHeader( byte[] baseHeader ){
 		
-		if( data.length != BASE_HEADER_SIZE ){
+		if( baseHeader.length != BASE_HEADER_SIZE ){
 			throw new IllegalArgumentException("Header size should be 20 bytes.") ;
 		}
 
@@ -34,7 +35,7 @@ public class TCPHeader{
 
 	}
 
-	public void setOptions( bytes[] options ){
+	public void setOptions( byte[] options ){
 		this.options = options ;
 	}
 
@@ -91,7 +92,7 @@ public class TCPHeader{
 	public int getHeaderLength(){
 
 		byte length = byte12And13[0] ;
-		length >> 4 ;
+		length = (byte) (length >> 4) ;
 		return (new Byte(length)).intValue() * 4 ; 
 
 	}
@@ -166,7 +167,7 @@ public class TCPHeader{
 
 	private boolean isBitOn( byte b, int position ){
 		int num = ( new Byte(b) ).intValue() ;
-		return (num & ( 1 << i )) != 0 ;
+		return (num & ( 1 << position )) != 0 ;
 	}
 
 	// get all byte of baseHeader in range [from, to)
