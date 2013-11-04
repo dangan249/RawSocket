@@ -18,13 +18,19 @@ import static com.savarese.rocksaw.net.RawSocket.PF_INET;
 public class RawSocketClient{
 
 	private RawSocket rSock ;
+	private final byte URG_FLAG = (byte) 0;
+	private final byte ACK_FLAG = (byte) 1;
+	private final byte SYN_FLAG = (byte) 16;
+	private final byte ACK_SYN_FLAG = (byte) 17;
+	private final byte FIN_FLAG = (byte) 32;
+	private final byte ACK_FIN_FLAG = (byte) 33;
 
 /* TCP functionalities supported:
 
 Packet = IP Header + TCP Header + Data
 
--- Verify the checksums of incoming TCP packets (how?)
--- Generate correct checksums for outgoing packets. (IP)
+-- Verify the checksums of incoming TCP packets (done)
+-- Generate correct checksums for outgoing packets. (done)
 -- Select a valid local port to send traffic on (done)
 -- Perform the three-way handshake
 -- Handle connection teardown. 
@@ -83,18 +89,17 @@ Packet = IP Header + TCP Header + Data
     // return: the InputStream from the server
     public void sendMessage( String message ) throws IOException{
 
-    	TCPPacket packet = new TCPPacket() ;
-    	packet.header.setSourcePort( (short) getAvailablePort() ) ;
-    	packet.header.setDestinationPort( (short) 80) ;
+    	int chosenPort = getAvailablePort()  ;
+    	System.out.println( "Source port: " + chosenPort ) ;
+    	System.out.println( "Dest port: " + 80 ) ;
+    	System.out.println( "Sequence number: " + 1 ) ;    	  
+    	System.out.println( "ACK number: " + 2 ) ;    	  
+    	System.out.println( "FLAGS: " + ACK_FLAG ) ;    	  
+		System.out.println( "Window size: " + 50 ) ;    	  
 
-    	packet.header.setSequenceNumber( 0 ) ;
-    	packet.header.setACKNumber( 0 ) ;
+    	TCPPacket packet = new TCPPacket( new TCPHeader( chosenPort, 80 , 1 , 2, ACK_FLAG , 50 ) );
 
-    	packet.header.setHeaderLength( 20 ) ;
-    	packet.header.setSYN() ;
-
-
-    	this.rSock.write( this.remoteAddress , packet.header.getBaseHeader() ) ;
+    	this.rSock.write( this.remoteAddress , packet.header.getHeader() ) ;
     
 
     }	
@@ -125,7 +130,7 @@ Packet = IP Header + TCP Header + Data
 	    } catch ( IOException e) {
 	    	System.out.println( e.toString() ) ;
 	    } finally {
-	        if (ss != null) {
+	        if (sock != null) {
 	            sock.close();
 	        }
 	    }

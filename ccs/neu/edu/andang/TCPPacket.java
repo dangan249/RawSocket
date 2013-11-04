@@ -7,8 +7,8 @@ public class TCPPacket{
 	TCPHeader header ;
 	private byte[] data ;
 
-	public TCPPacket(){
-		this.header = new TCPHeader() ; 
+	public TCPPacket( TCPHeader header ){
+		this.header = header ; 
 	}
 
 
