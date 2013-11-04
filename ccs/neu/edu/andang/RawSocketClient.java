@@ -18,12 +18,12 @@ import static com.savarese.rocksaw.net.RawSocket.PF_INET;
 public class RawSocketClient{
 
 	private RawSocket rSock ;
-	private final byte URG_FLAG = (byte) 0;
-	private final byte ACK_FLAG = (byte) 1;
-	private final byte SYN_FLAG = (byte) 16;
-	private final byte ACK_SYN_FLAG = (byte) 17;
-	private final byte FIN_FLAG = (byte) 32;
-	private final byte ACK_FIN_FLAG = (byte) 33;
+	private final byte URG_FLAG = (byte) 32;
+	private final byte FIN_FLAG = (byte) 1;
+	private final byte SYN_FLAG = (byte) 2;
+	private final byte ACK_SYN_FLAG = (byte) 18;
+	private final byte ACK_FLAG = (byte) 16;
+	private final byte ACK_FIN_FLAG = (byte) 17;
 
 /* TCP functionalities supported:
 
