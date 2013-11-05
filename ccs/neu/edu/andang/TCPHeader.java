@@ -37,8 +37,16 @@ public class TCPHeader{
 		this.urg_point = 0;
 	}
 
+
+
+	// convert the entire header (base header + options) to a byte array
+	public byte[] toByteArray(){
+		return getBaseHeader() ;
+	}
+
+
 	// Generate the TCP Header in a byte array format
-	public byte[] getHeader() {
+	public byte[] getBaseHeader() {
 		byte[] header = new byte[BASE_HEADER_SIZE];
 		header[0] = (byte)((source_port>>8)&255);
 		header[1] = (byte)(source_port&255);
@@ -94,7 +102,7 @@ public class TCPHeader{
 	public boolean isFINFlagOn(){return (boolean)((flags&1) == 1);}
 	
 	private void print() {
-		byte[] head = getHeader();
+		byte[] head = getBaseHeader();
 		for (int j=0; j<head.length; j++) {
 			System.out.format("%02X ", head[j]);
 		}

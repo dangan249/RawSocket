@@ -2,6 +2,8 @@ package ccs.neu.edu.andang ;
 
 // Util 
 import java.util.Random ;
+import java.util.Collections ;
+import java.util.Enumeration;
 
 // Exceptions:
 import java.net.SocketException ;
@@ -11,6 +13,8 @@ import java.io.IOException ;
 // Networking:
 import java.net.URL ;
 import java.net.InetAddress ;
+import java.net.Inet4Address ;
+import java.net.NetworkInterface ;
 import java.net.ServerSocket ;
 import com.savarese.rocksaw.net.RawSocket;
 import static com.savarese.rocksaw.net.RawSocket.PF_INET;
@@ -97,11 +101,13 @@ Packet = IP Header + TCP Header + Data
     	System.out.println( "FLAGS: " + ACK_FLAG ) ;    	  
 		System.out.println( "Window size: " + 50 ) ;    	  
 
-    	TCPPacket packet = new TCPPacket( new TCPHeader( chosenPort, 80 , 1 , 2, ACK_FLAG , 50 ) );
+		TCPHeader header = new TCPHeader( chosenPort, 80 , 1 , 2, ACK_FLAG , 50 ) ;
+    	TCPPacket packet = new TCPPacket( header );
 
-    	this.rSock.write( this.remoteAddress , packet.header.getHeader() ) ;
+    	getPseudoHeader() ;
+
+    	this.rSock.write( this.remoteAddress , packet.toByteArray() ) ;
     
-
     }	
 
     boolean isIPSupported() throws SocketException {
@@ -118,6 +124,50 @@ Packet = IP Header + TCP Header + Data
     	} while (!isPortAvailable(port));
 
     	return port;
+	}
+
+	// return the pseudo header needed to calculate checksum
+	private byte[] getPseudoHeader(){
+		
+		byte[] pseudoHeader = new byte[12] ; 
+		byte[] sourceAddress = getSourceExternalIPAddress().getAddress() ;
+		byte[] destAddres = this.remoteAddress().getAddress() ;
+
+
+		return pseudoHeader ;
+	}
+
+
+	private InetAddress getSourceExternalIPAddress(){
+		InetAddress result = null ;
+		try{       
+
+			Enumeration<NetworkInterface> allInterfaces = NetworkInterface.getNetworkInterfaces();
+	        
+	        for (NetworkInterface anInterface : Collections.list( allInterfaces )) {
+	            
+	            Enumeration addresses = anInterface.getInetAddresses();
+	    		
+	    		while(addresses.hasMoreElements()) {
+
+	        		InetAddress ia= (InetAddress) addresses.nextElement();
+	        		
+	        		if(! ia.isLoopbackAddress() )
+	        			if( ia instanceof Inet4Address ){
+	        				System.out.println( ia.getHostAddress() );
+	        				result = ia ;
+	        			}
+	        			
+	        	}
+
+	    	}
+	    }
+		
+		catch ( SocketException e) {
+	    	System.out.println( e.toString() ) ;
+	    }
+	    
+	    return result;
 	}
 
 	private boolean isPortAvailable( int port ) throws IOException {
