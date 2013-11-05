@@ -42,7 +42,7 @@ public class TCPHeader{
 		this.generateChecksum(tcpPacket, pseudoHeader);
 	}
 
-	private void generateChecksum(byte[] byteArray, byte[] psedoHeader) {
+	private int generateChecksum(byte[] byteArray, byte[] psedoHeader) {
 		long sum = 0; 
 		
 		//add TCP pseudo header containing src and dest IP addresses as 16 bit words
@@ -103,7 +103,8 @@ public class TCPHeader{
 		//compute one's complement of sum
 		sum = (~sum&0xFFFF);
 		checksum = (int) sum;
-		System.out.println("The Checksum after one's complement-->"+Integer.toHexString(checksum));		
+		System.out.println("The Checksum after one's complement-->"+Integer.toHexString(checksum));
+		return checksum;
 	}
 
 	// Generate the TCP Header in a byte array format
