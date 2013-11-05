@@ -112,7 +112,7 @@ Packet = IP Header + TCP Header + Data
 										  INITIAL_ACK_NUM, SYN_FLAG , WINDOW_SIZE ) ;
     	TCPPacket packet = new TCPPacket( header );
 
-    	int checksum = Util.generateChecksum( getChecksumData( packet ) );
+    	int checksum = (int) Util.generateChecksum( getChecksumData( packet ) );
 		System.out.println( "Checksum: " + checksum ) ;    	      	
     	packet.header.setCheckSum( checksum ) ;
 
@@ -160,8 +160,8 @@ Packet = IP Header + TCP Header + Data
 			out.write( sourceAddress );
 			out.write( destAddres );
 			out.write( reserved ) ;
-			out.write( b.array() );
 			out.write( protocol );
+			out.write( b.array() );
 			out.write( packet.toByteArray() ) ;
 		}
 		catch(IOException ex){
