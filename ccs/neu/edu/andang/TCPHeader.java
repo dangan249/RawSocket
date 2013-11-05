@@ -1,4 +1,4 @@
-package ccs.neu.edu.andang ;
+package ccs.neu.edu.temp ;
 
 import java.nio.ByteBuffer ;
 import java.util.Arrays ;
@@ -19,8 +19,12 @@ public class TCPHeader{
 	int checksum;
 	int urg_point;
 	
+	// Checksum is calculated on pseudo header + TCP header + TCP data}
+	byte [] tcpPacket = { (byte)0x45, (byte)0x00, (byte)0x00, (byte)0x3c,  (byte)0x1c, (byte)0x46, (byte)0x40, (byte)0x00, (byte)0x40, (byte)0x06, (byte)0x00, (byte)0x00, (byte)0xac, (byte)0x10, (byte)0x0a, (byte)0x63, (byte)0xac, (byte)0x10, (byte)0x0a, (byte)0x0c };
+	byte [] pseudoHeader = { (byte)0xFF, (byte)0xFF, 46, (byte)0xFF, (byte)0xFF, 45, 00, (byte)0x3c, 06 };
+	
 	// TODO: Parse a TCP Header for an incoming TCP packet
-	public TCPHeader(byte[] header){
+	public TCPHeader(){
 		
 	}
 
@@ -39,18 +43,76 @@ public class TCPHeader{
 		this.win_size = win_size;
 		this.checksum = 0;
 		this.urg_point = 0;
+		this.generateChecksum(tcpPacket, pseudoHeader);
 	}
 
+	private int generateChecksum(byte[] byteArray, byte[] psedoHeader) {
+		long sum = 0; 
+		
+		//add TCP pseudo header containing src and dest IP addresses as 16 bit words
+		int j = 0;
+		for (j=0; j<4; j=j+2) {
+			int srcHalfIP = (pseudoHeader[j]&255)<<8 + (pseudoHeader[j+1]);
+			sum = sum + srcHalfIP;
+		}
+		
+		for (j=4; j<8; j=j+2) {
+			int destHalfIP = (pseudoHeader[j]&255)<<8 + (pseudoHeader[j+1]);
+			sum = sum + destHalfIP;
+		}
+		
+		//add protocol number (penultimate byte) and the length of TCP packet (last byte)
+		int protocolNum = psedoHeader[j]; // it's protocol number from IP packet (IPV4)
+		System.out.println("Protocol num-->"+protocolNum);
+		int lenTCP = byteArray.length; // TCP header + data ( assuming data to be zero and header (byteArray) will be added below
+		System.out.println("TCP length-->"+lenTCP);
+		
+		// if the byte array (TCP header) has odd number of octets, padding" a zero byte
+		byte[] stream ;
+		if (lenTCP % 2 != 0) {
+			stream = new byte[lenTCP+1];
+			for (int i=0; i< lenTCP; i++) {
+				stream[i] = byteArray[i];
+			}
+			stream[lenTCP] = 0;
+		} else {
+			stream = new byte[lenTCP];
+			for (int i=0; i< lenTCP; i++)
+				stream[i] = byteArray[i];
+		}
+		//sum = sum + protocolNum + 0; (not sure if this is TCP packet size or 0)
+		sum = sum + protocolNum + lenTCP;		
 
+		// adjacent 8 bit words are stored as a short, 
+		// sum up the 16 bit shorts
+		for (int c=0; c < stream.length; c=c+2 ) {
+			int firstByte = Byte.valueOf(stream[c]).intValue();
+			
+			// to convert it to unsigned value
+			firstByte = firstByte&255;
+			int shifted = (firstByte<<8);
+			System.out.println("The shifted-->"+Integer.toHexString(shifted));
+			int nextbyte = stream[c+1]&255;
+			System.out.println("The next byte-->"+Integer.toHexString(nextbyte));
+			int twoBytesGrouping = (shifted + (stream[c+1]&255));
+			System.out.println("The exor result-->"+Integer.toHexString(twoBytesGrouping));
+			sum = sum + twoBytesGrouping;
+		}
+		
+		//adding the 17th odd bit to the checksum to keep it 16 bit word
+		while (sum > 65535)
+			sum = sum - 65536 + 1;		
+		System.out.println("The sum in hex--> "+Long.toHexString(sum));
 
-	// convert the entire header (base header + options) to a byte array
-	public byte[] toByteArray(){
-		return getBaseHeader() ;
+		//compute one's complement of sum
+		sum = (~sum&0xFFFF);
+		checksum = (int) sum;
+		System.out.println("The Checksum after one's complement-->"+Integer.toHexString(checksum));
+		return checksum;
 	}
-
 
 	// Generate the TCP Header in a byte array format
-	public byte[] getBaseHeader() {
+	public byte[] getHeader() {
 		byte[] header = new byte[BASE_HEADER_SIZE];
 		header[0] = (byte)((source_port>>8)&255);
 		header[1] = (byte)(source_port&255);
@@ -106,7 +168,7 @@ public class TCPHeader{
 	public boolean isFINFlagOn(){return (boolean)((flags&1) == 1);}
 	
 	private void print() {
-		byte[] head = getBaseHeader();
+		byte[] head = getHeader();
 		for (int j=0; j<head.length; j++) {
 			System.out.format("%02X ", head[j]);
 		}
