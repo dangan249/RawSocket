@@ -9,6 +9,7 @@ import java.nio.ByteBuffer ;
 // Exceptions:
 import java.net.SocketException ;
 import java.net.UnknownHostException ;
+import java.net.MalformedURLException ;
 import java.io.IOException ;
 
 // Networking:
@@ -74,17 +75,10 @@ Packet = IP Header + TCP Header + Data
     // TODO: connect to the remote server + doing the handshake
     public boolean connect() throws UnknownHostException, SocketException, IOException{
 
+  	    this.remoteAddress = getIPAddress( this.remoteHost ) ;
+
     	this.rSock = new RawSocket () ;
 		this.rSock.open( PF_INET, RawSocket.getProtocolByName("tcp")) ;
-
-		URL destURL = new URL( this.remoteHost ) ;
-
-  	    this.remoteAddress = InetAddress.getByName( destURL.getHost() );
-
-  	    if( remoteAddress.isAnyLocalAddress() || remoteAddress.isLoopbackAddress()
-  	     || remoteAddress.isLinkLocalAddress() ){
-  	    	return false ;
-  	    }
 
   	    return true ;
     }
@@ -92,6 +86,7 @@ Packet = IP Header + TCP Header + Data
    
     // send the message to the remote server that we connect with
     // return: the InputStream from the server
+    // TODO: really return the InputStream
     public void sendMessage( String message ) throws IOException{
 
     	int chosenPort = getAvailablePort()  ;
@@ -105,7 +100,9 @@ Packet = IP Header + TCP Header + Data
 		TCPHeader header = new TCPHeader( chosenPort, 80 , 1 , 2, ACK_FLAG , 50 ) ;
     	TCPPacket packet = new TCPPacket( header );
 
-    	getChecksumData( packet ) ;
+    	int checksum = Util.generateChecksum( getChecksumData( packet ) );
+		System.out.println( "Checksum: " + checksum ) ;    	      	
+    	packet.header.setCheckSum( checksum ) ;
 
     	this.rSock.write( this.remoteAddress , packet.toByteArray() ) ;
     
@@ -115,6 +112,11 @@ Packet = IP Header + TCP Header + Data
     	return this.rSock.getIPHeaderInclude() ;
     } 
 
+    // parsing a URL string and give back the corresponding InetAddress object
+    private InetAddress getIPAddress( String urlString ) throws UnknownHostException, MalformedURLException{
+		URL url = new URL( urlString ) ;
+  	    return InetAddress.getByName( url.getHost() );
+    }
 
     // Strategy: pick a random port from [49152,65535]
     // use ServerSocket to verify that it iss open
@@ -158,22 +160,18 @@ Packet = IP Header + TCP Header + Data
 		InetAddress result = null ;
 		try{       
 
-			Enumeration<NetworkInterface> allInterfaces = NetworkInterface.getNetworkInterfaces();
-	        
+			Enumeration<NetworkInterface> allInterfaces = NetworkInterface.getNetworkInterfaces();	        
 	        for (NetworkInterface anInterface : Collections.list( allInterfaces )) {
 	            
-	            Enumeration addresses = anInterface.getInetAddresses();
-	    		
+	            Enumeration addresses = anInterface.getInetAddresses();	    		
 	    		while(addresses.hasMoreElements()) {
-
-	        		InetAddress ia= (InetAddress) addresses.nextElement();
+	        		InetAddress ia= (InetAddress) addresses.nextElement();	        		
 	        		
 	        		if(! ia.isLoopbackAddress() )
 	        			if( ia instanceof Inet4Address ){
 	        				System.out.println( ia.getHostAddress() );
 	        				result = ia ;
-	        			}
-	        			
+	        			}	        			
 	        	}
 
 	    	}

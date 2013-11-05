@@ -38,7 +38,7 @@ public class TCPPacket{
 	}
 
 	public int length(){
-		return header.length() + data.length ;
+		return header.length() + ( this.data == null ? 0 : this.data.length );
 	}
 
 	public void setData( byte[] data ){
