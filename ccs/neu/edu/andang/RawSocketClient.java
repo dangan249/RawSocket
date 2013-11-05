@@ -11,6 +11,7 @@ import java.net.SocketException ;
 import java.net.UnknownHostException ;
 import java.net.MalformedURLException ;
 import java.io.IOException ;
+import java.lang.RuntimeException ;
 
 // Networking:
 import java.net.URL ;
@@ -30,6 +31,9 @@ public class RawSocketClient{
 	private final byte ACK_SYN_FLAG = (byte) 18;
 	private final byte ACK_FLAG = (byte) 16;
 	private final byte ACK_FIN_FLAG = (byte) 17;
+	private final int WINDOW_SIZE = 14600 ;
+	private final int INITIAL_SEQUENCE_NUM = 0 ;
+	private final int INITIAL_ACK_NUM = 0 ;
 
 /* TCP functionalities supported:
 
@@ -55,11 +59,13 @@ Packet = IP Header + TCP Header + Data
     private String remoteHost ;
     private int remotePort ;
     private InetAddress remoteAddress ;
+    private InetAddress sourceAddress ;
 
     // TODO: set up the sender and receiver raw socks
     public RawSocketClient( String remoteHost, int remotePort ){
 		this.remoteHost = remoteHost ;
 		this.remotePort = remotePort ;
+		this.sourceAddress =  getSourceExternalIPAddress() ;		
     }
 
     // TODO: handling TCP teardown process
@@ -77,6 +83,9 @@ Packet = IP Header + TCP Header + Data
 
   	    this.remoteAddress = getIPAddress( this.remoteHost ) ;
 
+  	    if( this.remoteAddress.isAnyLocalAddress() || this.remoteAddress.isLoopbackAddress() ){
+  	    	throw new RuntimeException("Internal Error") ;
+  	    }
     	this.rSock = new RawSocket () ;
 		this.rSock.open( PF_INET, RawSocket.getProtocolByName("tcp")) ;
 
@@ -90,14 +99,17 @@ Packet = IP Header + TCP Header + Data
     public void sendMessage( String message ) throws IOException{
 
     	int chosenPort = getAvailablePort()  ;
+    	System.out.println( "Source address: " + this.sourceAddress );    	
+    	System.out.println( "Destination address: " + this.remoteAddress );
     	System.out.println( "Source port: " + chosenPort ) ;
     	System.out.println( "Dest port: " + 80 ) ;
-    	System.out.println( "Sequence number: " + 1 ) ;    	  
-    	System.out.println( "ACK number: " + 2 ) ;    	  
-    	System.out.println( "FLAGS: " + ACK_FLAG ) ;    	  
-		System.out.println( "Window size: " + 50 ) ;    	  
+    	System.out.println( "Sequence number: " + INITIAL_SEQUENCE_NUM ) ;    	  
+    	System.out.println( "ACK number: " + INITIAL_ACK_NUM ) ;    	  
+    	System.out.println( "FLAGS: " + SYN_FLAG ) ;    	  
+		System.out.println( "Window size: " + WINDOW_SIZE ) ;    	  
 
-		TCPHeader header = new TCPHeader( chosenPort, 80 , 1 , 2, ACK_FLAG , 50 ) ;
+		TCPHeader header = new TCPHeader( chosenPort, 80 , INITIAL_SEQUENCE_NUM , 
+										  INITIAL_ACK_NUM, SYN_FLAG , WINDOW_SIZE ) ;
     	TCPPacket packet = new TCPPacket( header );
 
     	int checksum = Util.generateChecksum( getChecksumData( packet ) );
@@ -132,9 +144,11 @@ Packet = IP Header + TCP Header + Data
 	// return the pseudo header needed to calculate checksum
 	private byte[] getChecksumData( TCPPacket packet ){
 		
-		byte[] sourceAddress = getSourceExternalIPAddress().getAddress() ;
+		byte[] sourceAddress = this.sourceAddress.getAddress() ;
 		byte[] destAddres = this.remoteAddress.getAddress() ;
 		byte[] reserved  = new byte[]{ (byte) 0 };
+		byte[] protocol  = new byte[]{ (byte) 6 };
+
 		short tcpSegmentLength = (short) packet.length() ;
 
 		ByteBuffer b = ByteBuffer.allocate(2);
@@ -147,6 +161,7 @@ Packet = IP Header + TCP Header + Data
 			out.write( destAddres );
 			out.write( reserved ) ;
 			out.write( b.array() );
+			out.write( protocol );
 			out.write( packet.toByteArray() ) ;
 		}
 		catch(IOException ex){
@@ -169,7 +184,6 @@ Packet = IP Header + TCP Header + Data
 	        		
 	        		if(! ia.isLoopbackAddress() )
 	        			if( ia instanceof Inet4Address ){
-	        				System.out.println( ia.getHostAddress() );
 	        				result = ia ;
 	        			}	        			
 	        	}

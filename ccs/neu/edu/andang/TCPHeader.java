@@ -34,7 +34,7 @@ public class TCPHeader{
 		this.destination_port = destination_port;
 		this.seq_num = seq_num;
 		this.ack_num = ack_num;
-		this.data_offset = 5;
+		this.data_offset = BASE_HEADER_SIZE / 4 ;
 		this.flags = flags;
 		this.win_size = win_size;
 		this.checksum = 0;
