@@ -24,6 +24,10 @@ public class TCPHeader{
 		
 	}
 
+	public int length(){
+		return BASE_HEADER_SIZE ;
+	}
+
 	// Create a TCP Header for an outgoing TCP packet
 	public TCPHeader(int source_port, int destination_port, long seq_num, long ack_num, byte flags, int win_size) {
 		this.source_port = source_port;

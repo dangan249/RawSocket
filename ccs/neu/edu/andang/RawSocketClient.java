@@ -4,7 +4,8 @@ package ccs.neu.edu.andang ;
 import java.util.Random ;
 import java.util.Collections ;
 import java.util.Enumeration;
-
+import java.io.ByteArrayOutputStream ;
+import java.nio.ByteBuffer ;
 // Exceptions:
 import java.net.SocketException ;
 import java.net.UnknownHostException ;
@@ -104,7 +105,7 @@ Packet = IP Header + TCP Header + Data
 		TCPHeader header = new TCPHeader( chosenPort, 80 , 1 , 2, ACK_FLAG , 50 ) ;
     	TCPPacket packet = new TCPPacket( header );
 
-    	getPseudoHeader() ;
+    	getChecksumData( packet ) ;
 
     	this.rSock.write( this.remoteAddress , packet.toByteArray() ) ;
     
@@ -127,17 +128,32 @@ Packet = IP Header + TCP Header + Data
 	}
 
 	// return the pseudo header needed to calculate checksum
-	private byte[] getPseudoHeader(){
+	private byte[] getChecksumData( TCPPacket packet ){
 		
-		byte[] pseudoHeader = new byte[12] ; 
 		byte[] sourceAddress = getSourceExternalIPAddress().getAddress() ;
-		byte[] destAddres = this.remoteAddress().getAddress() ;
+		byte[] destAddres = this.remoteAddress.getAddress() ;
+		byte[] reserved  = new byte[]{ (byte) 0 };
+		short tcpSegmentLength = (short) packet.length() ;
 
+		ByteBuffer b = ByteBuffer.allocate(2);
+		b.putShort(tcpSegmentLength); 
 
-		return pseudoHeader ;
+		ByteArrayOutputStream out = new ByteArrayOutputStream( );
+
+		try{
+			out.write( sourceAddress );
+			out.write( destAddres );
+			out.write( reserved ) ;
+			out.write( b.array() );
+			out.write( packet.toByteArray() ) ;
+		}
+		catch(IOException ex){
+			System.out.println( ex.toString() ) ;
+		}
+		return out.toByteArray();
 	}
 
-
+	// return external IP address of this machine, which hosts the program
 	private InetAddress getSourceExternalIPAddress(){
 		InetAddress result = null ;
 		try{       
