@@ -1,11 +1,15 @@
 package ccs.neu.edu.andang ;
 
 // Util 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.Random ;
 import java.util.Collections ;
 import java.util.Enumeration;
 import java.io.ByteArrayOutputStream ;
 import java.nio.ByteBuffer ;
+import java.util.Arrays ;
+
 // Exceptions:
 import java.net.SocketException ;
 import java.net.UnknownHostException ;
@@ -32,8 +36,9 @@ public class RawSocketClient{
 	private final byte ACK_FLAG = (byte) 16;
 	private final byte ACK_FIN_FLAG = (byte) 17;
 	private final int WINDOW_SIZE = 14600 ;
-	private final int INITIAL_SEQUENCE_NUM = 0 ;
-	private final int INITIAL_ACK_NUM = 0 ;
+    private final int DATA_BUFFER_SIZE = 1460 ;
+    private final long INITIAL_SEQUENCE_NUM = 0l ;
+	private final long INITIAL_ACK_NUM = 0l ;
 
 /* TCP functionalities supported:
 
@@ -58,14 +63,27 @@ Packet = IP Header + TCP Header + Data
 */
     private String remoteHost ;
     private int remotePort ;
+    private int sourcePort ;
     private InetAddress remoteAddress ;
     private InetAddress sourceAddress ;
+    private long currentSeqNum ;
+    private long currentACKNum ;
 
     // TODO: set up the sender and receiver raw socks
     public RawSocketClient( String remoteHost, int remotePort ){
 		this.remoteHost = remoteHost ;
 		this.remotePort = remotePort ;
-		this.sourceAddress =  getSourceExternalIPAddress() ;		
+		this.sourceAddress =  getSourceExternalIPAddress() ;	
+		this.sourcePort = getAvailablePort() ;
+
+
+        System.out.println("Remote host: " + this.remoteHost ) ;
+        System.out.println("Remote port: " + this.remotePort) ;
+        System.out.println("Source address: " + this.sourceAddress) ;
+        System.out.println("Source port: " + this.sourcePort ) ;
+
+        this.currentACKNum = INITIAL_ACK_NUM ;
+        this.currentSeqNum = INITIAL_SEQUENCE_NUM ;
     }
 
     // TODO: handling TCP teardown process
@@ -89,56 +107,130 @@ Packet = IP Header + TCP Header + Data
     	this.rSock = new RawSocket () ;
 		this.rSock.open( PF_INET, RawSocket.getProtocolByName("tcp")) ;
 
+        handShake() ;
   	    return true ;
     }
-    
-   
+
+
+    private byte[] read(){
+        byte[] responseData = new byte[DATA_BUFFER_SIZE] ;
+        TCPHeader header = null ;
+        do{
+            try {
+                this.rSock.read( responseData , sourceAddress.getAddress()) ;
+            } catch (IOException e) {
+                System.out.println( "Failed to read data from remote server: " + e.toString() ) ;
+            }
+            // get the TCP header and ignore all optional fields
+            header = new TCPHeader( Arrays.copyOfRange( responseData, 20, 40 ) ) ;
+
+        }
+        while ( header.getDestinationPort() != this.sourcePort && verifyChecksum( header ) );  // de-multiplexing
+
+        System.out.println("*******************************************************") ;
+        System.out.println("PACKET: ") ;
+        System.out.println( "Source port: " + header.getSourcePort() ) ;
+        System.out.println( "Destination port: " + header.getDestinationPort() ) ;
+        System.out.println(  "ACK num: " + header.getACKNumber() ) ;
+        System.out.println(  "Sequence num: " + header.getSequenceNumber() ) ;
+        System.out.println(  "Window size: " + header.getWindowSize() ) ;
+        System.out.println(  "Checksum: " + header.getChecksum() ) ;
+        System.out.println(  "Header length: " + header.getHeaderLength() ) ;
+        System.out.println( "ACK FLAG on: " + header.isACKFlagOn() ) ;
+        System.out.println( "SYN FLAG on: " + header.isSYNFlagOn() ) ;
+        System.out.println( "FYN FLAG on: " + header.isFINFlagOn() ) ;
+        System.out.println("*******************************************************") ;
+
+        return responseData ;
+    }
+    private  void handShake(){
+
+        try {
+
+            sendMessage( null, INITIAL_SEQUENCE_NUM, INITIAL_ACK_NUM, SYN_FLAG, WINDOW_SIZE );
+
+            byte[] responseData = read() ;
+
+            TCPHeader header = new TCPHeader( Arrays.copyOfRange( responseData, 20, 40 ) ) ;
+            sendMessage( null, ++this.currentSeqNum, this.currentACKNum = header.getSequenceNumber() + 1l,
+                    ACK_FLAG, WINDOW_SIZE );
+
+        } catch (IOException e) {
+            System.out.println( "Failed to connect to remote server: " + e.toString() ) ;
+        }
+
+    }
+
+
     // send the message to the remote server that we connect with
     // return: the InputStream from the server
-    // TODO: really return the InputStream
-    public void sendMessage( String message ) throws IOException{
+    public InputStream sendMessage( String message ) throws IOException{
 
-    	int chosenPort = getAvailablePort()  ;
-    	System.out.println( "Source address: " + this.sourceAddress );    	
-    	System.out.println( "Destination address: " + this.remoteAddress );
-    	System.out.println( "Source port: " + chosenPort ) ;
-    	System.out.println( "Dest port: " + 80 ) ;
-    	System.out.println( "Sequence number: " + INITIAL_SEQUENCE_NUM ) ;    	  
-    	System.out.println( "ACK number: " + INITIAL_ACK_NUM ) ;    	  
-    	System.out.println( "FLAGS: " + SYN_FLAG ) ;    	  
-		System.out.println( "Window size: " + WINDOW_SIZE ) ;    	  
+        sendMessage( message, this.currentSeqNum, this.currentACKNum, ACK_FLAG, WINDOW_SIZE );
+        byte[] responseData = read() ;
 
-		TCPHeader header = new TCPHeader( chosenPort, 80 , INITIAL_SEQUENCE_NUM , 
-										  INITIAL_ACK_NUM, SYN_FLAG , WINDOW_SIZE ) ;
-    	TCPPacket packet = new TCPPacket( header );
+        TCPHeader header = new TCPHeader( Arrays.copyOfRange( responseData, 20, 40 ) ) ;
 
-    	int checksum = (int) Util.generateChecksum( getChecksumData( packet ) );
-		System.out.println( "Checksum: " + checksum ) ;    	      	
-    	packet.header.setCheckSum( checksum ) ;
+        int dataIndex = header.getHeaderLength() * 4 ;
 
-    	this.rSock.write( this.remoteAddress , packet.toByteArray() ) ;
-    
+        return new ByteArrayInputStream( Arrays.copyOfRange( responseData, dataIndex, responseData.length ) ) ;
+
     }	
+
+    // create the TCP packet and use RockSaw to send it
+    private void sendMessage( String message, long sequenceNum, long  ackNum,
+                              byte flags, int winSize) throws IOException{
+
+        TCPHeader header = new TCPHeader( this.sourcePort, this.remotePort , sequenceNum ,
+                                          ackNum, flags , winSize ) ;
+        TCPPacket packet = new TCPPacket( header );
+
+        if( message != null && ! message.isEmpty() )
+            packet.setData( message.getBytes() ) ;
+
+        int checksum = Util.generateChecksum( getChecksumData( packet ) );
+        packet.getHeader().setCheckSum(checksum) ;
+
+        System.out.println("*******************************************************") ;
+        System.out.println("PACKET: ") ;
+        System.out.println( "Source port: " + header.getSourcePort() ) ;
+        System.out.println( "Destination port: " + header.getDestinationPort() ) ;
+        System.out.println(  "ACK num: " + header.getACKNumber() ) ;
+        System.out.println(  "Sequence num: " + header.getSequenceNumber() ) ;
+        System.out.println(  "Window size: " + header.getWindowSize() ) ;
+        System.out.println(  "Checksum: " + header.getChecksum() ) ;
+        System.out.println(  "Header length: " + header.getHeaderLength() ) ;
+        System.out.println( "ACK FLAG on: " + header.isACKFlagOn() ) ;
+        System.out.println( "SYN FLAG on: " + header.isSYNFlagOn() ) ;
+        System.out.println( "FYN FLAG on: " + header.isFINFlagOn() ) ;
+        System.out.println("*******************************************************") ;
+
+        this.rSock.write( this.remoteAddress , packet.toByteArray() ) ;
+
+	}
 
     boolean isIPSupported() throws SocketException {
     	return this.rSock.getIPHeaderInclude() ;
     } 
 
     // parsing a URL string and give back the corresponding InetAddress object
-    private InetAddress getIPAddress( String urlString ) throws UnknownHostException, MalformedURLException{
-		URL url = new URL( urlString ) ;
-  	    return InetAddress.getByName( url.getHost() );
+    private InetAddress getIPAddress( String host ) throws UnknownHostException, MalformedURLException{
+  	    return InetAddress.getByName( host );
     }
 
     // Strategy: pick a random port from [49152,65535]
     // use ServerSocket to verify that it iss open
-    private int getAvailablePort() throws IOException {
+    private int getAvailablePort() {
     	int port = 0;
-    	do {
-        	port = (new Random()).nextInt(65535 - 49152 + 1) + 49152;
-    	} while (!isPortAvailable(port));
+        try {
+            do {
+                port = (new Random()).nextInt(65535 - 49152 + 1) + 49152;
+            } while (!isPortAvailable(port));
+        } catch (IOException e) {
+            System.out.println( e.toString() ) ;
+        }
 
-    	return port;
+        return port;
 	}
 
 	// return the pseudo header needed to calculate checksum
@@ -198,6 +290,12 @@ Packet = IP Header + TCP Header + Data
 	    return result;
 	}
 
+    private boolean verifyChecksum( TCPHeader header ){
+
+        return header.getChecksum()
+                == Util.generateChecksum( getChecksumData( new TCPPacket( header )) ) ;
+    }
+
 	private boolean isPortAvailable( int port ) throws IOException {
 
 	    ServerSocket sock = null;
@@ -224,7 +322,6 @@ Packet = IP Header + TCP Header + Data
 			RawSocketClient client = new RawSocketClient( 
 				"http://www.ccs.neu.edu/home/cbw/4700/project4.html",80 ) ;
 			client.connect() ;
-			client.sendMessage( "" ) ;
 		}
 		catch (SocketException ex){
 			System.out.println( ex.toString() ) ;

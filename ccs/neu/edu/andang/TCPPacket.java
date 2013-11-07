@@ -7,7 +7,7 @@ import java.io.IOException ;
 // TCPPacket: represent a TCP  packet
 public class TCPPacket{
 
-	TCPHeader header ;
+	private TCPHeader header ;
 	private byte[] data ;
 
 	public TCPPacket( TCPHeader header ){
@@ -48,6 +48,15 @@ public class TCPPacket{
 	public byte[] getData(){
 		return this.data ;
 	}
+
+	public void setHeader( TCPHeader header ){
+		this.header = header ;
+	}
+
+	public TCPHeader getHeader(){
+		return this.header ;
+	}	
+	
 }
 
 

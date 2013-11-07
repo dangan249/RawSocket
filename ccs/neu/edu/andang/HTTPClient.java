@@ -171,12 +171,11 @@ public class HTTPClient{
 										 IOException, MalformedURLException{
 
 		
-		SocketClient sock = null ;
+		RawSocketClient sock = null ;
 		try{
 			int port = this.request.getURL().getPort() ;
-			sock = new SocketClient( this.request.getURL().getHost(), 
-									 port == -1 ? 80 : port,
-									 false ) ;
+			sock = new RawSocketClient( this.request.getURL().getHost(),
+									 port == -1 ? 80 : port) ;
 			sock.connect() ;
 
 			String getMessage = this.request.serializeRequest( method ) ;

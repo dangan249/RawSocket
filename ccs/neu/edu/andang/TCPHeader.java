@@ -2,6 +2,7 @@ package ccs.neu.edu.andang ;
 
 import java.nio.ByteBuffer ;
 import java.util.Arrays ;
+
 // TODO
 // TCPHeader: represent the header of a TCP packet
 // it also allow packets with optional fields
@@ -18,11 +19,37 @@ public class TCPHeader{
 	int win_size;
 	int checksum;
 	int urg_point;
-	
-	// TODO: Parse a TCP Header for an incoming TCP packet
-	public TCPHeader(){
-		
-	}
+
+
+    byte[] options ;
+
+    public TCPHeader( byte[] baseHeader ){
+
+        if (baseHeader.length == BASE_HEADER_SIZE) {
+            source_port = ( ( ( baseHeader[0] << 8 ) & 65280 ) | ( baseHeader[1 ] & 255 ));
+
+            destination_port = (int)(((baseHeader[2]<<8)&65280)|(baseHeader[3]&255));
+
+            seq_num = (long)(((baseHeader[4]<<24)&4278190080l)
+                    |((baseHeader[5]<<16)&16711680l)
+                    |((baseHeader[6]<<8)&65280)
+                    |(baseHeader[7]&255));
+
+            ack_num = (long)(((baseHeader[8]<<24)&4278190080l)
+                    |((baseHeader[9]<<16)&16711680l)
+                    |((baseHeader[10]<<8)&65280)
+                    |(baseHeader[11]&255));
+
+            data_offset = (byte)((baseHeader[12]>>4)&15);
+            flags = (byte)(baseHeader[13]&63);
+            win_size = (int)(((baseHeader[14]<<8)&65280)|(baseHeader[15]&255));
+            checksum = (int)(((baseHeader[16]<<8)&65280)|(baseHeader[17]&255));
+            urg_point = (int)(((baseHeader[18]<<8)&65280)|(baseHeader[19]&255));
+        }
+        else{
+            throw new RuntimeException("Error in creating bash header for TCPPacket") ;
+        }
+    }
 
 	public int length(){
 		return BASE_HEADER_SIZE ;
@@ -70,6 +97,13 @@ public class TCPHeader{
 		return header;
 	}
 
+    public byte[] getOptions() {
+        return options;
+    }
+
+    public void setOptions(byte[] options) {
+        this.options = options;
+    }
 	public int getSourcePort(){return this.source_port;}
 
 	public int getDestinationPort(){return this.destination_port;}
@@ -101,8 +135,8 @@ public class TCPHeader{
 	public boolean isSYNFlagOn(){return (boolean)((flags&2) == 2);}
 
 	public boolean isFINFlagOn(){return (boolean)((flags&1) == 1);}
-	
-	private void print() {
+
+	public void print() {
 		byte[] head = getHeader();
 		for (int j=0; j<head.length; j++) {
 			System.out.format("%02X ", head[j]);

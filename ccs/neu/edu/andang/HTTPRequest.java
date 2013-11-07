@@ -1,6 +1,7 @@
 package ccs.neu.edu.andang ;
 
 import java.net.URL ;
+import java.util.HashMap;
 import java.util.Map ;
 import java.util.Collection ;
 
@@ -23,7 +24,7 @@ public class HTTPRequest{
 		this.url = url ;
 		this.headers = HashMultimap.create() ;
 		this.requestBody = "" ;
-
+        this.cookies = new HashMap<String,String>() ;
 	}
 
 
