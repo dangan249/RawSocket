@@ -18,6 +18,7 @@ CLASSES = \
         ./ccs/neu/edu/andang/SocketClient.java \
         ./ccs/neu/edu/andang/TCPHeader.java \
         ./ccs/neu/edu/andang/TCPPacket.java \
+        ./ccs/neu/edu/andang/IPHeader.java \
         ./ccs/neu/edu/andang/RawSocketClient.java 
 
 
@@ -30,5 +31,3 @@ clean:
 	
 run: $(CLASSES)
 	sudo java $(CP) .:$(JARPATH) $(LP)=$(LIBPATH) $(MAIN) "http://www.ccs.neu.edu/home/cbw/4700/project4.html"
-
-
