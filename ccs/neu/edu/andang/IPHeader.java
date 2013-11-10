@@ -1,0 +1,131 @@
+package ccs.neu.edu.andang ;
+
+import java.nio.ByteBuffer ;
+import java.util.Arrays ;
+
+// IPHeader: represent the header of an IP packet
+public class IPHeader{
+
+	private final int BASE_HEADER_SIZE = 20 ;
+
+	byte version;
+	byte ihl;
+	short tos;
+	int length;
+	int id;
+	byte flags;
+	short offset;
+	short ttl;
+	short protocol;
+	int checksum;
+	long source_address;
+	long destination_address;
+	
+    byte[] options ;
+
+    public IPHeader( byte[] baseHeader ){
+        if (baseHeader.length == BASE_HEADER_SIZE) {
+			version = (byte)((baseHeader[0]>>4)&15);
+			ihl = (byte)(baseHeader[0]&15);
+			tos = (short)(baseHeader[1]&63);
+			length = (int)(((baseHeader[2]<<8)&65280)|(baseHeader[3]&255));
+			id = (int)(((baseHeader[4]<<8)&65280)|(baseHeader[5]&255));
+			flags = (byte)((baseHeader[6]>>5)&7);
+			offset = (short)(baseHeader[6]&31);
+			ttl = (short)(baseHeader[8]&63);
+			protocol = (short)(baseHeader[9]&63);
+			checksum = (int)(((baseHeader[10]<<8)&65280)|(baseHeader[11]&255));
+			source_address = (long)(((baseHeader[12]<<24)&4278190080l)
+                    |((baseHeader[13]<<16)&16711680l)
+                    |((baseHeader[14]<<8)&65280)
+                    |(baseHeader[15]&255));
+			destination_address = (long)(((baseHeader[16]<<24)&4278190080l)
+                    |((baseHeader[17]<<16)&16711680l)
+                    |((baseHeader[18]<<8)&65280)
+                    |(baseHeader[19]&255));
+        }	
+        else{
+            throw new RuntimeException("Error in creating bash header for TCPPacket") ;
+        }
+    }
+
+	// Create an IP Header for an outgoing IP packet
+	public IPHeader(int length, long source_address, long destination_address) {
+		this.version = 4;
+		this.ihl = 5;
+		this.tos = 0;
+		this.length = length;
+		this.id = 0;
+		this.flags = 2;
+		this.offset = 0;
+		this.ttl = 64;
+		this.protocol = 6;
+		this.checksum = 0;
+		this.source_address = source_address;
+		this.destination_address = destination_address;
+	}
+
+	public byte[] toByteArray(){
+		return getHeader() ;	
+	}
+	
+	// Generate the TCP Header in a byte array format
+	public byte[] getHeader() {
+		byte[] header = new byte[BASE_HEADER_SIZE];
+		header[0] = (byte)(((version&15)<<4)|(ihl&15));
+		header[1] = (byte)(tos&255);
+		header[2] = (byte)((length>>8)&255);
+		header[3] = (byte)(length&255);
+		header[4] = (byte)((id>>8)&255);
+		header[5] = (byte)(id&255);
+		header[6] = (byte)(((flags&7)<<5)|((offset>>8)&31));
+		header[7] = (byte)(offset&255);
+		header[8] = (byte)(ttl&255);
+		header[9] = (byte)(protocol&255);
+		header[10] = (byte)((checksum>>8)&255);
+		header[11] = (byte)(checksum&255);
+		header[12] = (byte)((source_address>>24)&255);
+		header[13] = (byte)((source_address>>16)&255);
+		header[14] = (byte)((source_address>>8)&255);
+		header[15] = (byte)(source_address&255);
+		header[16] = (byte)((destination_address>>24)&255);
+		header[17] = (byte)((destination_address>>16)&255);
+		header[18] = (byte)((destination_address>>8)&255);
+		header[19] = (byte)(destination_address&255);
+		return header;
+	}
+	
+	public byte[] getOptions() {
+        return options;
+    }
+
+    public void setOptions(byte[] options) {
+        this.options = options;
+    }
+
+	// return the number of 32 bit words in the IP header 
+	// including any 'options' fields.
+	public int getHeaderLength(){return length;}
+
+	public int getChecksum(){return checksum;}
+	public void setCheckSum(int checksum){this.checksum = checksum;}
+	public byte getVersion(){return version;}
+	public byte getIHL(){return ihl;}
+	public short getToS(){return tos;}
+	public int getID(){return id;}
+	public short getOffset(){return offset;}
+	public short getTTL(){return ttl;}
+	public short getProtocol(){return protocol;}
+	public long getSourceAddress(){return source_address;}
+	public long getDestinationAddress(){return destination_address;}
+	public boolean isFragmentOn(){return (boolean)((flags&2) == 2);}
+	public boolean isMoreFragmentsOn(){return (boolean)((flags&1) == 1);}
+
+	public void print() {
+		byte[] head = getHeader();
+		for (int j=0; j<head.length; j++) {
+			System.out.format("%02X ", head[j]);
+		}
+		System.out.println();
+	}
+}
