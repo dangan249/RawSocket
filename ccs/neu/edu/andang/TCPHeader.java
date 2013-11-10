@@ -1,5 +1,7 @@
 package ccs.neu.edu.andang ;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer ;
 import java.util.Arrays ;
 
@@ -69,7 +71,18 @@ public class TCPHeader{
 	}
 
 	public byte[] toByteArray(){
-		return getHeader() ;	
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream( );
+        try {
+            out.write( getHeader() );
+            if ( options != null ){
+                out.write( this.options );
+            }
+        } catch (IOException e) {
+            System.out.println( e.toString() ) ;
+        }
+
+		return out.toByteArray()  ;
 	}
 	// Generate the TCP Header in a byte array format
 	public byte[] getHeader() {

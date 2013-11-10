@@ -17,14 +17,14 @@ public class TCPPacket{
 	// convert the entire packet (data + header) to a byte array
 	public byte[] toByteArray(){
 
-		byte[] result = header.toByteArray() ;
+		byte[] headerBytes = header.toByteArray() ;
 		ByteArrayOutputStream out = new ByteArrayOutputStream( );
 
 		try{
-			out.write( result ) ;
+			out.write( headerBytes ) ;
 		
 			if( this.data != null ){
-					out.write( data ) ;				
+			    out.write( data ) ;
 			}
 			
 			return out.toByteArray() ;

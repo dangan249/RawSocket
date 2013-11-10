@@ -39,7 +39,7 @@ public class RawHTTPGet {
             request.setHeaders( headers ) ;
             //request.addCookies( this.cookies ) ;
             this.client.setRequest( request ) ;
-            client.doGet() ;
+            client.doGetWithRedirect(); ;
         }
         catch( UnknownHostException ex){
             System.out.println("Unable to connect to " + client.getRequest().getURL() + ". Unknown host" ) ;
