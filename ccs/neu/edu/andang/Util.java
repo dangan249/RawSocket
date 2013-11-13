@@ -111,9 +111,9 @@ public class Util{
     // return true if the checksum in the receiving header
     public static boolean verifyChecksum( TCPPacket packet , InetAddress srcAddress,
                                    InetAddress dstAddress ){
-        return packet.getHeader().getChecksum()
-                == Util.generateChecksum(
-                          getChecksumData( packet , srcAddress, dstAddress) ) ;
+        return 0 == Util.generateChecksum(
+                getChecksumData( packet , srcAddress, dstAddress) ) ;
+
     }
 
     // return external IP address of this machine, which hosts the program

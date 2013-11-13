@@ -147,6 +147,15 @@ public class TCPHeader{
 
 	public boolean isFINFlagOn(){return (boolean)((flags&1) == 1);}
 
+
+    public byte getFlags() {
+        return flags;
+    }
+
+    public void setFlags(byte flags) {
+        this.flags = flags;
+    }
+
 	public void print() {
 		byte[] head = getHeader();
 		for (int j=0; j<head.length; j++) {
