@@ -1,5 +1,13 @@
 package ccs.neu.edu.andang;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.*;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Random;
+
 public class Util{
 
 	public static int generateChecksum(byte[] byteArray) {
@@ -43,4 +51,116 @@ public class Util{
 		
 		return sum ;
 	}
+
+
+    // return the index where the data portion of a packet start
+    public  static int getDataIndex(TCPHeader header , int tcpHeaderStartIndex ){
+        return tcpHeaderStartIndex + header.getHeaderLength() * 4 ;
+    }
+
+    // parsing a URL string and give back the corresponding InetAddress object
+    public static InetAddress getIPAddress( String host ) throws UnknownHostException, MalformedURLException {
+        return InetAddress.getByName( host );
+    }
+
+    // Strategy: pick a random port from [49152,65535]
+    // use ServerSocket to verify that it iss open
+    public static int getAvailablePort() {
+        int port = 0;
+        try {
+            do {
+                port = (new Random()).nextInt(65535 - 49152 + 1) + 49152;
+            } while (!isPortAvailable(port));
+        } catch (IOException e) {
+            System.out.println( e.toString() ) ;
+        }
+
+        return port;
+    }
+
+    // return the pseudo header needed to calculate  checksum
+    public static byte[] getChecksumData( TCPPacket packet , InetAddress srcAddress,
+                                   InetAddress dstAddress ){
+
+        byte[] sourceAddress = srcAddress.getAddress() ;
+        byte[] destAddres = dstAddress.getAddress() ;
+        byte[] reserved  = new byte[]{ (byte) 0 };
+        byte[] protocol  = new byte[]{ (byte) 6 };
+
+        short tcpSegmentLength = (short) packet.length() ;
+
+        ByteBuffer b = ByteBuffer.allocate(2);
+        b.putShort(tcpSegmentLength);
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream( );
+
+        try{
+            out.write( sourceAddress );
+            out.write( destAddres );
+            out.write( reserved ) ;
+            out.write( protocol );
+            out.write( b.array() );
+            out.write( packet.toByteArray() ) ;
+        }
+        catch(IOException ex){
+            System.out.println( ex.toString() ) ;
+        }
+        return out.toByteArray();
+    }
+
+    // return true if the checksum in the receiving header
+    public static boolean verifyChecksum( TCPPacket packet , InetAddress srcAddress,
+                                   InetAddress dstAddress ){
+        return packet.getHeader().getChecksum()
+                == Util.generateChecksum(
+                          getChecksumData( packet , srcAddress, dstAddress) ) ;
+    }
+
+    // return external IP address of this machine, which hosts the program
+    public static InetAddress getSourceExternalIPAddress(){
+        InetAddress result = null ;
+        try{
+
+            Enumeration<NetworkInterface> allInterfaces = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface anInterface : Collections.list(allInterfaces)) {
+
+                Enumeration addresses = anInterface.getInetAddresses();
+                while(addresses.hasMoreElements()) {
+                    InetAddress ia= (InetAddress) addresses.nextElement();
+
+                    if(! ia.isLoopbackAddress() )
+                        if( ia instanceof Inet4Address){
+                            result = ia ;
+                        }
+                }
+
+            }
+        }
+
+        catch ( SocketException e) {
+            System.out.println( e.toString() ) ;
+        }
+
+        return result;
+    }
+
+    // return true if the given port is available
+    private static boolean isPortAvailable( int port ) throws IOException {
+
+        ServerSocket sock = null;
+        try {
+            sock = new ServerSocket(port);
+            sock.setReuseAddress(true);
+            return true;
+        } catch ( IOException e) {
+            System.out.println( e.toString() ) ;
+        } finally {
+            if (sock != null) {
+                sock.close();
+            }
+        }
+
+        return false;
+    }
+
 }

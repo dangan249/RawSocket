@@ -88,7 +88,6 @@ public class HTTPClient{
 				" does not return proper HTTP Status Code: " + ex.toString() ) ;
 		}
 
-			
 
 		// PARSING HEADERS	
 		Multimap<String,String> headers = HashMultimap.create() ;

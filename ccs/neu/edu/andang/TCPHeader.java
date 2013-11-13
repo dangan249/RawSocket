@@ -2,8 +2,6 @@ package ccs.neu.edu.andang ;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer ;
-import java.util.Arrays ;
 
 // TODO
 // TCPHeader: represent the header of a TCP packet
