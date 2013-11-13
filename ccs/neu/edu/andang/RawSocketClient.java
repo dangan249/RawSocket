@@ -168,13 +168,12 @@ Packet = IP Header + TCP Header + Data
         }
 
         packet.getHeader().setCheckSum(0) ;
-        // TODO: fix this
         if( Util.verifyChecksum( packet , this.sourceAddress, this.destAddress ) ){
             System.out.println( "check sum correctlly") ;
             return packet ;
         }
 
-        return packet ;
+        return null ;
     }
 
     // TODO: implement the behavior
@@ -184,12 +183,13 @@ Packet = IP Header + TCP Header + Data
 
         sendMessage( message, this.currentSeqNum, this.currentACKNum, (byte) 0);
 
-        readAll(); ;
+        readAll();
 
         return null ;
     }
 
     // handle the TCP's 3 way handshake
+    // side-effect: change this.currentSeqNum and this.currentACKNum
     private  void handShake(){
         System.out.println( "HANDSHAKING");
         try {
@@ -222,6 +222,10 @@ Packet = IP Header + TCP Header + Data
     // read all incoming packets until it get a complete HTML request for the server
     // the method will send back an ACK to the server if there is no error
     // Assumption: we have finished the handshake and send out the request message
+    // side-effect:
+    // -- changing this.currentACKNum: when receiving data (NOTE: we need to + 1 with this value when ACKING)
+    // -- changing this.currentSeqNum:
+
     private void readAll(){
 
         ByteArrayOutputStream out = new ByteArrayOutputStream( DATA_BUFFER_SIZE * 2 ) ;
@@ -259,12 +263,10 @@ Packet = IP Header + TCP Header + Data
 
                 // verifying checksum
                 // TODO: fix this
-                /*
-                if( verifyChecksum( packet ) ){
-                    System.out.println( "check sum correctlly") ;
-                    return packet ;
+
+                if( Util.verifyChecksum( packet , this.sourceAddress, this.destAddress ) ){
+                    continue ;
                 }
-                */
 
                 // check if server stop sending data
                 if( header.isFINFlagOn() ){
