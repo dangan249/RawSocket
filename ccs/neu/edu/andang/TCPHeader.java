@@ -52,7 +52,7 @@ public class TCPHeader{
     }
 
 	public int length(){
-		return BASE_HEADER_SIZE ;
+		return BASE_HEADER_SIZE + ( this.options == null ? 0 : this.options.length ) ;
 	}
 
 	// Create a TCP Header for an outgoing TCP packet
