@@ -216,7 +216,7 @@ Packet = IP Header + TCP Header + Data
         int dataIndex = getDataIndex( header ) ;
 
         // check if there are options in TCP header
-        if( dataIndex > TCP_IP_HEADERS_MIN_SIZE - 1 ){
+        if( dataIndex > TCP_IP_HEADERS_MIN_SIZE ){
             header.setOptions( Arrays.copyOfRange( responseData, TCP_IP_HEADERS_MIN_SIZE, dataIndex ) );
         }
 

@@ -34,7 +34,7 @@ public class Util{
 			sum = sum + twoBytesGrouping;
 		}
 		
-		//adding the 17th odd bit to the checksum to keep it 16 bit word
+		//adding the carried over bits to the checksum to keep it a 16 bit word
 		while (sum > 65535)
 			sum = sum - 65536 + 1;
 		
