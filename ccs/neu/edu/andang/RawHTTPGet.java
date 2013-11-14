@@ -7,8 +7,7 @@
 
 package ccs.neu.edu.andang ;
 
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.Iterator ;
 import com.google.common.collect.Multimap ;
 import com.google.common.collect.HashMultimap ;
@@ -17,7 +16,6 @@ import com.google.common.collect.HashMultimap ;
 import java.net.UnknownHostException ;
 import java.net.SocketException ;
 import java.net.MalformedURLException;
-import java.io.IOException ;
 
 import java.net.URL ;
 
@@ -66,13 +64,48 @@ public class RawHTTPGet {
         // Everything OK, parse HTML, find keys and add URLs
         else if (stat == HTTPClient.StatusCode.OK) {
             String htmlBody = client.getResponse().getResponseBody() ;
+            FileOutputStream fop = null;
+            File file;
+
             try {
-                PrintWriter out = new PrintWriter("filename.txt") ;
-                out.println(htmlBody);
-            } catch (FileNotFoundException e) {
+
+                String fileName = null ;
+
+                if (hostURL.contains(".html")){
+                    String[] stuffs = hostURL.split("/") ;
+                    fileName = stuffs[ stuffs.length - 1 ] ;
+                }
+                else
+                    fileName = "./index.html" ;
+
+                file = new File(fileName);
+                fop = new FileOutputStream(file);
+
+                // if file doesnt exists, then create it
+                if (!file.exists()) {
+                    file.createNewFile();
+                }
+
+                // get the content in bytes
+                byte[] contentInBytes = htmlBody.getBytes();
+
+                fop.write(contentInBytes);
+                fop.flush();
+                fop.close();
+
+                System.out.println("Done");
+
+            } catch (IOException e) {
                 e.printStackTrace();
+            } finally {
+                try {
+                    if (fop != null) {
+                        fop.close();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
-            System.out.println(htmlBody);
         }
         else {
             System.out.println("Unknown Status Code");
