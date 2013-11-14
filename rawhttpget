@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ $# -eq 1 ] 
+then
+	sudo java -classpath .:lib/* -Djava.library.path=rocksaw-1.0.3/lib/ ccs.neu.edu.andang.RawHTTPGet $1
+else
+	echo "Usage: ./rawhttpget [url]"
+fi
