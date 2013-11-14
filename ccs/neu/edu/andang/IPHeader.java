@@ -1,8 +1,5 @@
 package ccs.neu.edu.andang ;
 
-import java.nio.ByteBuffer ;
-import java.util.Arrays ;
-
 // IPHeader: represent the header of an IP packet
 public class IPHeader{
 
@@ -18,8 +15,8 @@ public class IPHeader{
 	short ttl;
 	short protocol;
 	int checksum;
-	long source_address;
-	long destination_address;
+	byte[] source_address = new byte[4];
+	byte[] destination_address = new byte[4];
 	
     byte[] options ;
 
@@ -35,22 +32,22 @@ public class IPHeader{
 			ttl = (short)(baseHeader[8]&63);
 			protocol = (short)(baseHeader[9]&63);
 			checksum = (int)(((baseHeader[10]<<8)&65280)|(baseHeader[11]&255));
-			source_address = (long)(((baseHeader[12]<<24)&4278190080l)
-                    |((baseHeader[13]<<16)&16711680l)
-                    |((baseHeader[14]<<8)&65280)
-                    |(baseHeader[15]&255));
-			destination_address = (long)(((baseHeader[16]<<24)&4278190080l)
-                    |((baseHeader[17]<<16)&16711680l)
-                    |((baseHeader[18]<<8)&65280)
-                    |(baseHeader[19]&255));
-        }	
+			source_address[0] = baseHeader[12];
+			source_address[1] = baseHeader[13];
+			source_address[2] = baseHeader[14];
+			source_address[3] = baseHeader[15];
+			destination_address[0] = baseHeader[16];
+			destination_address[1] = baseHeader[17];
+			destination_address[2] = baseHeader[18];
+			destination_address[3] = baseHeader[19];
+			}	
         else{
             throw new RuntimeException("Error in creating bash header for TCPPacket") ;
         }
     }
 
 	// Create an IP Header for an outgoing IP packet
-	public IPHeader(int length, long source_address, long destination_address) {
+	public IPHeader(int length, byte[] source_address, byte[] destination_address) {
 		this.version = 4;
 		this.ihl = 5;
 		this.tos = 0;
@@ -61,8 +58,14 @@ public class IPHeader{
 		this.ttl = 64;
 		this.protocol = 6;
 		this.checksum = 0;
-		this.source_address = source_address;
-		this.destination_address = destination_address;
+		this.source_address[0] = source_address[0];
+		this.source_address[1] = source_address[1];
+		this.source_address[2] = source_address[2];
+		this.source_address[3] = source_address[3];
+		this.destination_address[0] = destination_address[0];
+		this.destination_address[1] = destination_address[1];
+		this.destination_address[2] = destination_address[2];
+		this.destination_address[3] = destination_address[3];
 	}
 
 	public byte[] toByteArray(){
@@ -84,14 +87,14 @@ public class IPHeader{
 		header[9] = (byte)(protocol&255);
 		header[10] = (byte)((checksum>>8)&255);
 		header[11] = (byte)(checksum&255);
-		header[12] = (byte)((source_address>>24)&255);
-		header[13] = (byte)((source_address>>16)&255);
-		header[14] = (byte)((source_address>>8)&255);
-		header[15] = (byte)(source_address&255);
-		header[16] = (byte)((destination_address>>24)&255);
-		header[17] = (byte)((destination_address>>16)&255);
-		header[18] = (byte)((destination_address>>8)&255);
-		header[19] = (byte)(destination_address&255);
+		header[12] = source_address[0];
+		header[13] = source_address[1];
+		header[14] = source_address[2];
+		header[15] = source_address[3];
+		header[16] = destination_address[0];
+		header[17] = destination_address[1];
+		header[18] = destination_address[2];
+		header[19] = destination_address[3];
 		return header;
 	}
 	
@@ -103,10 +106,7 @@ public class IPHeader{
         this.options = options;
     }
 
-	// return the number of 32 bit words in the IP header 
-	// including any 'options' fields.
-	public int getHeaderLength(){return length;}
-
+	public int getEntireLength(){return length;}
 	public int getChecksum(){return checksum;}
 	public void setCheckSum(int checksum){this.checksum = checksum;}
 	public byte getVersion(){return version;}
@@ -116,8 +116,10 @@ public class IPHeader{
 	public short getOffset(){return offset;}
 	public short getTTL(){return ttl;}
 	public short getProtocol(){return protocol;}
-	public long getSourceAddress(){return source_address;}
-	public long getDestinationAddress(){return destination_address;}
+	
+	public byte[] getSourceAddress(){return source_address;}
+	public byte[] getDestinationAddress(){return destination_address;}
+	
 	public boolean isFragmentOn(){return (boolean)((flags&2) == 2);}
 	public boolean isMoreFragmentsOn(){return (boolean)((flags&1) == 1);}
 
