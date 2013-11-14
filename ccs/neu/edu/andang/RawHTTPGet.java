@@ -7,6 +7,8 @@
 
 package ccs.neu.edu.andang ;
 
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.Iterator ;
 import com.google.common.collect.Multimap ;
 import com.google.common.collect.HashMultimap ;
@@ -64,6 +66,12 @@ public class RawHTTPGet {
         // Everything OK, parse HTML, find keys and add URLs
         else if (stat == HTTPClient.StatusCode.OK) {
             String htmlBody = client.getResponse().getResponseBody() ;
+            try {
+                PrintWriter out = new PrintWriter("filename.txt") ;
+                out.println(htmlBody);
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
             System.out.println(htmlBody);
         }
         else {

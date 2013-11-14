@@ -19,13 +19,10 @@ import static com.savarese.rocksaw.net.RawSocket.PF_INET;
 
 public class RawSocketClient{
 
-	private final byte URG_FLAG = (byte) 32;
-	private final byte FIN_FLAG = (byte) 1;
 	private final byte SYN_FLAG = (byte) 2;
-	private final byte ACK_SYN_FLAG = (byte) 18;
 	private final byte ACK_FLAG = (byte) 16;
 	private final byte ACK_FIN_FLAG = (byte) 17;
-	private final int AD_WINDOW_SIZE = 146000;
+	private final int AD_WINDOW_SIZE = 1460000;
     private final int DATA_BUFFER_SIZE = 2000 ;
     private final int IP_HEADER_SIZE = 20 ;
     private final int TCP_IP_HEADERS_MIN_SIZE = 40 ;
@@ -102,20 +99,6 @@ public class RawSocketClient{
                 Util.getChecksumData( packet, this.sourceAddress, this.destAddress) );
 
         packet.getHeader().setCheckSum(checksum) ;
-/*
-        System.out.println("OUTGOING PACKET: ") ;
-        System.out.println( "Source port: " + header.getSourcePort() ) ;
-        System.out.println( "Destination port: " + header.getDestinationPort() ) ;
-        System.out.println(  "ACK num: " + header.getACKNumber() ) ;
-        System.out.println(  "Sequence num: " + header.getSequenceNumber() ) ;
-        System.out.println(  "Window size: " + header.getWindowSize() ) ;
-        System.out.println(  "Checksum: " + header.getChecksum() ) ;
-        System.out.println(  "Header length: " + header.getHeaderLength() ) ;
-        System.out.println( "ACK FLAG on: " + header.isACKFlagOn() ) ;
-        System.out.println( "SYN FLAG on: " + header.isSYNFlagOn() ) ;
-        System.out.println( "FYN FLAG on: " + header.isFINFlagOn() ) ;
-        System.out.println("*******************************************************") ;*/
-
         this.rSock.write( this.destAddress, packet.toByteArray() ) ;
 
     }
@@ -157,19 +140,6 @@ public class RawSocketClient{
 
         // TODO: fix this,when packet has data, this check failed
         if( Util.verifyChecksum( packet , this.sourceAddress, this.destAddress ) ){
-/*            System.out.println( "check sum correctlly") ;
-            System.out.println("INCOMING PACKET: ") ;
-            System.out.println( "Source port: " + header.getSourcePort() ) ;
-            System.out.println( "Destination port: " + header.getDestinationPort() ) ;
-            System.out.println(  "ACK num: " + header.getACKNumber() ) ;
-            System.out.println(  "Sequence num: " + header.getSequenceNumber() ) ;
-            System.out.println(  "Window size: " + header.getWindowSize() ) ;
-            System.out.println(  "Checksum: " + header.getChecksum() ) ;
-            System.out.println(  "Header length: " + header.getHeaderLength() ) ;
-            System.out.println( "ACK FLAG on: " + header.isACKFlagOn() ) ;
-            System.out.println( "SYN FLAG on: " + header.isSYNFlagOn() ) ;
-            System.out.println( "FYN FLAG on: " + header.isFINFlagOn() ) ;
-            System.out.println("*******************************************************") ;*/
             return packet ;
         }
 
@@ -180,9 +150,6 @@ public class RawSocketClient{
     // send the message to the remote server that we connect with
     // return: the InputStream from the server
     public InputStream sendMessage( String message ) throws IOException{
-
-        System.out.println("START SENDING GET MESSAGE") ;
-
 
         sendMessage( message, this.currentSeqNum, this.currentACKNum + 1 , ACK_FLAG);
 
@@ -228,12 +195,10 @@ public class RawSocketClient{
     // -- changing this.currentSeqNum:
 
     private ByteArrayOutputStream readAll(){
-        System.out.println( "DOWNLOADING packets");
+
         ByteArrayOutputStream out = new ByteArrayOutputStream( DATA_BUFFER_SIZE * 2 ) ;
-        System.out.println( "this.currentACKNum: " + this.currentACKNum) ;
         boolean done = false ;
         boolean firstACK = true;
-        int count = 0 ;
         while(true){
             try {
 
@@ -245,11 +210,10 @@ public class RawSocketClient{
 
                 // if the packet is not in order, we ACK put do not use it or buffer it
                 if( packet.getData() != null ){
-                    count++ ;
-                    if( count == 20 ) System.exit(-1);
+
                     if ( isInOrder(packet) ){
                         this.currentACKNum += this.numBytesReceived ;
-                        System.out.println( "receiving packet: " + packet.getHeader().getSequenceNumber() );
+                        this.numBytesReceived = 0 ;
                         out.write( packet.getData() );
                     }
 
@@ -264,7 +228,6 @@ public class RawSocketClient{
                 }
 
                 if(!firstACK){
-                    System.out.println("acking: " + (this.currentACKNum + 2 - this.numBytesReceived)) ;
                     sendMessage( null, this.currentSeqNum, this.currentACKNum + 2 - this.numBytesReceived , ACK_FLAG);
                 }
                 firstACK = false ;
