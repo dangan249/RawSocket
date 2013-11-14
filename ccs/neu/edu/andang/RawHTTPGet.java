@@ -39,7 +39,7 @@ public class RawHTTPGet {
             request.setHeaders( headers ) ;
             //request.addCookies( this.cookies ) ;
             this.client.setRequest( request ) ;
-            client.doGetWithRedirect(); ;
+            client.doGetWithRedirect() ;
         }
         catch( UnknownHostException ex){
             System.out.println("Unable to connect to " + client.getRequest().getURL() + ". Unknown host" ) ;
@@ -59,17 +59,6 @@ public class RawHTTPGet {
 
         if (stat == HTTPClient.StatusCode.INTERNAL_SERVER_ERROR) {
             System.out.println( "Unable to get data from remote system.  Returned tatus code: 500" ) ;
-        }
-        // URL moved, add new URL to the queue
-        else if (stat == HTTPClient.StatusCode.MOVED_PERMANENTLY ||
-                    stat == HTTPClient.StatusCode.MOVED_TEMPORARILY) {
-            Iterator<String> iter = client.getResponse().getHeaders().get("Location").iterator();
-            if (iter.hasNext()) {
-                this.hostURL = iter.next();
-                downloadPage() ;
-            }
-            else
-                throw new RuntimeException("Expect a redirect URL but found none.") ;
         }
 
         // Everything OK, parse HTML, find keys and add URLs

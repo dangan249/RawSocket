@@ -184,6 +184,7 @@ public class HTTPClient{
 			deserializeResponse( input ) ;			
 		}
 		catch(Exception ex ){
+            ex.printStackTrace();
 			System.out.println( "Problem with sending request: " + ex.toString() ) ;
 		}
 		finally{

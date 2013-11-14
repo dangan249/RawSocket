@@ -69,8 +69,8 @@ public class HTTPRequest{
 		String path = this.getURL().getPath() ;
 		builder.append(  path == "" ? "/" : path ) ; 
 		builder.append( " " ) ;
-		builder.append( "HTTP/1.0\r\n" ) ;
-
+		builder.append( "HTTP/1.1\n" ) ;
+        builder.append( "Host: www.ccs.neu.edu\r\n" ) ;
 
 		// BUILDING HEADERS 
 		Multimap<String,String> headers = this.getHeaders() ;
