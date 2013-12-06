@@ -55,8 +55,23 @@ public class TCPPacket{
 
 	public TCPHeader getHeader(){
 		return this.header ;
-	}	
-	
+	}
+
+    public boolean isAckPacket(){
+        return this.header.isACKFlagOn() ;
+    }
+
+    public boolean isFinPacket(){
+        return this.header.isFINFlagOn() ;
+    }
+
+    public boolean isSynPacket(){
+        return this.header.isSYNFlagOn() ;
+    }
+
+    public boolean containData(){
+        return this.data != null ;
+    }
 }
 
 

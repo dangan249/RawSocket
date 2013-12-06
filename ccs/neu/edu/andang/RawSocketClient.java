@@ -19,16 +19,6 @@ import static com.savarese.rocksaw.net.RawSocket.PF_INET;
 
 public class RawSocketClient{
 
-	private final byte SYN_FLAG = (byte) 2;
-	private final byte ACK_FLAG = (byte) 16;
-	private final byte ACK_FIN_FLAG = (byte) 17;
-	private final int AD_WINDOW_SIZE = 1460000;
-    private final int DATA_BUFFER_SIZE = 2000 ;
-    private final int IP_HEADER_SIZE = 20 ;
-    private final int TCP_IP_HEADERS_MIN_SIZE = 40 ;
-    private final long INITIAL_SEQUENCE_NUM = 1l ;
-	private final long INITIAL_ACK_NUM = 0l ;
-
     private RawSocket rSock ;
     private String remoteHost ;
     private int destPort;
@@ -38,45 +28,51 @@ public class RawSocketClient{
     private long currentSeqNum ; // the number of bytes have been sent
     private long currentACKNum ; // the number of bytes have received
     private int numBytesReceived = 0 ;
-    // TODO: set up the sender and receiver raw socks
+
     public RawSocketClient( String remoteHost, int destPort ){
 
         this.remoteHost = remoteHost ;
 		this.destPort = destPort;
 		this.sourceAddress =  Util.getSourceExternalIPAddress() ;
 		this.sourcePort = Util.getAvailablePort() ;
-        this.currentACKNum = INITIAL_ACK_NUM ;
-        this.currentSeqNum = INITIAL_SEQUENCE_NUM ;
+        this.currentACKNum = this.INITIAL_ACK_NUM ;
+        this.currentSeqNum = this.INITIAL_SEQUENCE_NUM ;
 
     }
 
-    // TODO: handling TCP teardown process
+    // TODO: implement sending keep alive
     public void disconnect(){
 		try{
-			this.rSock.close() ;
+            this.tearDown(true, null);
+            this.rSock.close() ;
 		}
 		catch(IOException ex){
 			System.out.println( "Unable to disconnect: " + ex.toString() ) ;
 		}
     }
 
-    // TODO: connect to the remote server + doing the handshake
-    public boolean connect() throws UnknownHostException, SocketException, IOException{
+    public boolean connect() throws  IOException{
         this.destAddress = Util.getIPAddress( this.remoteHost ) ;
 
   	    if( this.destAddress.isAnyLocalAddress() || this.destAddress.isLoopbackAddress() ){
   	    	throw new RuntimeException("Internal Error") ;
   	    }
     	this.rSock = new RawSocket () ;
-        this.rSock.open( PF_INET, RawSocket.getProtocolByName("tcp")) ;
-        // binding a raw socket to an address causes only packets with a destination
-        // matching the address to be delivered to the socket.
-        // Also, the kernel will set the source address of outbound packets to the bound address
-        // (unless setIPHeaderInclude(true) has been called).
-        this.rSock.bind(this.sourceAddress);
 
-        handShake() ;
-  	    return true ;
+        try{
+            this.rSock.open( PF_INET, RawSocket.getProtocolByName("tcp")) ;
+            // binding a raw socket to an address causes only packets with a destination
+            // matching the address to be delivered to the socket.
+            // Also, the kernel will set the source address of outbound packets to the bound address
+            // (unless setIPHeaderInclude(true) has been called).
+            this.rSock.bind(this.sourceAddress);
+            handShake() ;
+
+            return true ;
+        } catch (IOException e) {
+            System.out.println( "Failed to connect to remote server: " + e.toString() ) ;
+            return false ;
+        }
     }
 
 
@@ -134,24 +130,22 @@ public class RawSocketClient{
 
         packet = new TCPPacket( header );
         if( packetSize - 1 >  dataIndex ){
-            numBytesReceived = packetSize - dataIndex ;
+            setNumBytesReceived(packetSize - dataIndex);
             packet.setData( Arrays.copyOfRange( responseData, dataIndex , responseData.length ));
         }
 
         // TODO: fix this,when packet has data, this check failed
-        if( Util.verifyChecksum( packet , this.sourceAddress, this.destAddress ) ){
+        if( Util.verifyTCPChecksum(packet, this.sourceAddress, this.destAddress) ){
+            //System.out.println( "CHECKSUM successfully" ) ;
             return packet ;
         }
 
-        return packet ;
+        return null ;
     }
 
-    // TODO: implement the behavior
-    // send the message to the remote server that we connect with
-    // return: the InputStream from the server
     public InputStream sendMessage( String message ) throws IOException{
 
-        sendMessage( message, this.currentSeqNum, this.currentACKNum + 1 , ACK_FLAG);
+        sendMessage( message, this.getCurrentSeqNum(), this.getCurrentACKNum() + 1 , ACK_FLAG);
 
         InputStream is = new ByteArrayInputStream( readAll().toByteArray() );
 
@@ -160,31 +154,96 @@ public class RawSocketClient{
 
     // handle the TCP's 3 way handshake
     // side-effect: change this.currentSeqNum and this.currentACKNum
-    private  void handShake(){
-        try {
-            // send the SYN packet
-            sendMessage( null, this.currentSeqNum , this.currentACKNum, SYN_FLAG);
+    private  void handShake() throws  IOException{
 
-            TCPPacket returnedPacket = null ;
-            while(true){
-                returnedPacket = read() ;
-                if( returnedPacket.getHeader().isACKFlagOn()
-                 && returnedPacket.getHeader().isSYNFlagOn()
-                 && returnedPacket.getHeader().getACKNumber() == this.currentSeqNum + 1 ){
-                    break ;
-                }
-            }
-            // ACK-ing the SYN/ACK from server and also:
-            // -- increase currentSeqNum since the previous SYN packet is successfully received
-            // -- capture the server chosen starting sequence number
-            this.currentACKNum = returnedPacket.getHeader().getSequenceNumber() ;
-            sendMessage(null, ++this.currentSeqNum,
-                    this.currentACKNum + 1 ,
-                    ACK_FLAG);
-        } catch (IOException e) {
-            System.out.println( "Failed to connect to remote server: " + e.toString() ) ;
+        System.out.println( "HAND SHAKE START") ;
+        // send the SYN packet
+        sendMessage( null, this.getCurrentSeqNum(), this.getCurrentACKNum(), SYN_FLAG);
+
+        TCPPacket returnedPacket = waitForAck( SYN_FLAG ) ;
+
+        // ACK-ing the SYN/ACK from server and also:
+        // -- increase currentSeqNum since the previous SYN packet is successfully received
+        // -- capture the server chosen starting sequence number
+
+        // update our seq num
+        this.setCurrentSeqNum( this.getCurrentSeqNum() + 1 ) ;
+
+        ackPacket( returnedPacket );   // XXX - what if this ACK does not get to other side
+
+        // get remote host's starting seq num
+        this.setCurrentACKNum( returnedPacket.getHeader().getSequenceNumber() + 1);
+
+
+        System.out.println( "HAND SHAKE COMPLETE") ;
+
+
+    }
+
+    // tear down process
+    // param: byUs: we are the one who send out the first FIN packet
+    private void tearDown( boolean byUs, TCPPacket receivedPacket) throws IOException{
+
+        System.out.println( "TEAR DOWN START") ;
+
+        if( byUs ){
+            sendMessage( null,
+                    this.getCurrentSeqNum() ,
+                    this.getCurrentACKNum() ,
+                    ACK_FIN_FLAG);
+
+            TCPPacket returnedPacket = waitForAck( ACK_FIN_FLAG ) ;
+            this.setCurrentSeqNum(  this.getCurrentSeqNum() + 1  );
+            ackPacket( returnedPacket );
+            System.out.println( "TEAR DOWN COMPLETE") ;
+            return;
+        }
+        else{ // receiving a FIN from the server
+            ackPacket( receivedPacket );
         }
 
+
+    }
+
+    // we send out something and is waiting for an ACK packet
+    private TCPPacket waitForAck( byte type ){
+
+        TCPPacket returnedPacket = null ;
+
+        // read from socket until we see the SYN/ACK
+        while(true){
+            returnedPacket = read() ;
+            if ( returnedPacket.isAckPacket() ){
+
+                if ( type == ACK_FIN_FLAG ){   // TODO: create a flag for FYN
+                    if( returnedPacket.isFinPacket() ){
+                        // is this the FIN/ACK we are waiting for
+                        if( returnedPacket.getHeader().getACKNumber() == this.getCurrentSeqNum() + 1 )
+                            break ;
+                    }
+                }
+                else if ( type == SYN_FLAG ){
+                    if( returnedPacket.isSynPacket() ){
+                        // is this the SYN/ACK we are waiting for
+                        if( returnedPacket.getHeader().getACKNumber() == this.getCurrentSeqNum() + 1 )
+                            break ;
+                    }
+                }
+            }
+            continue;
+        }
+        return  returnedPacket ;
+    }
+
+    // ack a Packet sent from sender
+    // we ack all good packet
+    // side-effect: NONE  .  It is up to the method that call this message to update the seq and ack num
+    private void ackPacket( TCPPacket receivedPacket ) throws IOException{
+
+        sendMessage( null,
+                this.getCurrentSeqNum() ,
+                receivedPacket.getHeader().getSequenceNumber() + 1 ,
+                ACK_FLAG);
     }
 
     // read all incoming packets until it get a complete HTML request for the server
@@ -212,8 +271,8 @@ public class RawSocketClient{
                 if( packet.getData() != null ){
 
                     if ( isInOrder(packet) ){
-                        this.currentACKNum += this.numBytesReceived ;
-                        this.numBytesReceived = 0 ;
+                        this.setCurrentACKNum(this.getCurrentACKNum() + this.getNumBytesReceived());
+                        this.setNumBytesReceived(0);
                         out.write( packet.getData() );
                     }
 
@@ -224,19 +283,19 @@ public class RawSocketClient{
                 }
 
                 if( packet.getHeader().isACKFlagOn() ){
-                    this.currentSeqNum = packet.getHeader().getACKNumber() - 1;
+                    this.setCurrentSeqNum(packet.getHeader().getACKNumber() - 1);
                 }
 
                 if(!firstACK){
-                    sendMessage( null, this.currentSeqNum, this.currentACKNum + 2 - this.numBytesReceived , ACK_FLAG);
+                    sendMessage( null, this.getCurrentSeqNum(), this.getCurrentACKNum() + 2 - this.getNumBytesReceived(), ACK_FLAG);
                 }
                 firstACK = false ;
 
                 // check if server stop sending data
                 if( packet.getHeader().isFINFlagOn() ){
                     // send back a FIN/ACK
-                    sendMessage( null, this.currentSeqNum, packet.getHeader().getACKNumber() , ACK_FIN_FLAG) ;
-                    this.currentSeqNum++ ;
+                    sendMessage( null, this.getCurrentSeqNum(), packet.getHeader().getACKNumber() , ACK_FIN_FLAG) ;
+                    this.setCurrentSeqNum(this.getCurrentSeqNum() + 1);
                     done = true ;
                 }
 
@@ -252,7 +311,7 @@ public class RawSocketClient{
      // return true if this packet is in order: it is the packet we expect next
      private boolean isInOrder(TCPPacket packet){
         return (packet.getHeader().getSequenceNumber() - 1 )
-                == this.currentACKNum ;
+                == this.getCurrentACKNum();
 
     }
 
@@ -279,6 +338,62 @@ public class RawSocketClient{
 			System.out.println( ex.toString() ) ;
 		}
 	}
+
+    private final byte SYN_FLAG = (byte) 2;
+    private final byte ACK_FLAG = (byte) 16;
+    private final byte ACK_FIN_FLAG = (byte) 17;
+    private final int AD_WINDOW_SIZE = 1460000;
+    private final int DATA_BUFFER_SIZE = 2000 ;
+    private final int IP_HEADER_SIZE = 20 ;
+    private final int TCP_IP_HEADERS_MIN_SIZE = 40 ;
+    private final long INITIAL_SEQUENCE_NUM = 0l ;
+    private final long INITIAL_ACK_NUM = 0l ;
+
+    public long getCurrentSeqNum() {
+        return currentSeqNum;
+    }
+
+    public void setCurrentSeqNum(long currentSeqNum) {
+
+        System.out.println( "**********" ) ;
+        System.out.println( "SETTING SEQ NUM" ) ;
+        System.out.println( "old: "  + this.getCurrentSeqNum()) ;
+        System.out.println( "new: "  + currentSeqNum) ;
+        System.out.println( "**********" ) ;
+
+        this.currentSeqNum = currentSeqNum;
+    }
+
+    public long getCurrentACKNum() {
+        return currentACKNum;
+    }
+
+    public void setCurrentACKNum(long currentACKNum) {
+
+        System.out.println( "**********" ) ;
+        System.out.println( "SETTING ACK NUM" ) ;
+        System.out.println( "old: "  + this.getCurrentACKNum()) ;
+        System.out.println( "new: "  + currentACKNum) ;
+        System.out.println( "**********" ) ;
+
+        this.currentACKNum = currentACKNum;
+    }
+
+    public int getNumBytesReceived() {
+        return numBytesReceived;
+    }
+
+    public void setNumBytesReceived(int numBytesReceived) {
+        System.out.println( "**********" ) ;
+        System.out.println( "RECEIVING bytes" ) ;
+        System.out.println( "old: "  + this.getNumBytesReceived()) ;
+        System.out.println( "new: "  + numBytesReceived) ;
+        System.out.println( "**********" ) ;
+        this.numBytesReceived = numBytesReceived;
+    }
+
+
+
 }
 
 /*

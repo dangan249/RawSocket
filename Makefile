@@ -3,7 +3,7 @@ JC = javac
 JARPATH = lib/*
 LP = -Djava.library.path
 LIBPATH = rocksaw-1.0.3/lib/
-MAIN = ccs.neu.edu.andang.RawHTTPGet
+MAIN = ccs.neu.edu.andang.RawSocketClient
 CP = -classpath
 
 .SUFFIXES: .java .class
@@ -30,5 +30,5 @@ clean:
 	$(RM) ./ccs/neu/edu/andang/*.class 
 	
 run: $(CLASSES)
-	sudo java $(CP) .:$(JARPATH) $(LP)=$(LIBPATH) $(MAIN) "http://www.ccs.neu.edu/home/cbw/4700/project4.html"
+	sudo java $(CP) .:$(JARPATH) $(LP)=$(LIBPATH) $(MAIN)
 
