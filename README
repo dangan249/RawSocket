@@ -1,26 +1,6 @@
-Observations
-
-In the file we download the new line character seems to not be printed correctly. That's the only difference we get between the file downloaded with wget and our program.
-
----------
-
-High-level approach
-
-In order to implement HTTP we reused the code for project 2.
-For TCP and IP, we created classes for the headers and packets of both, and then methods for receiving and sending packets.
-First we do the three-way handshake and afterwards we send the connection petition.
-Then we receive packets and send ack for those packets, and transfer them to the HTTP layer.
-Finally we write the data to a file.
-
----------
-
-Features implemented
-
-Everything that was asked is implemented
-
 HTTP
--Everything from project 2
--Writing the result to a file
+-HTTP 1.0 implementation
+-GET and POST methods that support redirect 
 
 TCP
 -Generate correct TCP Headers
@@ -43,9 +23,3 @@ IP
 -Verify incoming IP checksums
 -Verify incoming IP address
 -Obtain local IP address
-
----------
-
-Challenges
-
-The most difficult part is the handling of the incoming TCP packets.
