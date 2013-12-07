@@ -71,7 +71,7 @@ public class RawHTTPGet {
 
                 String fileName = null ;
 
-                if (hostURL.contains(".html")){
+                if (hostURL.contains(".html") || hostURL.contains(".log")){
                     String[] stuffs = hostURL.split("/") ;
                     fileName = stuffs[ stuffs.length - 1 ] ;
                 }

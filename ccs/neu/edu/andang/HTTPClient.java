@@ -1,25 +1,25 @@
 package ccs.neu.edu.andang ;
 
 // I/O classes
-import java.io.InputStream ;
-import java.io.InputStreamReader ;
-import java.io.BufferedReader ;
 
-// Exceptions 
-import java.io.IOException ;
-import java.net.UnknownHostException ;
-import java.net.SocketException ;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
+import org.apache.commons.io.IOUtils;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.MalformedURLException;
-import java.lang.RuntimeException ;
+import java.net.SocketException;
+import java.net.URL;
+import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
+// Exceptions
 // Util classes
-import com.google.common.collect.Multimap ;
-import com.google.common.collect.HashMultimap ; 
-import java.util.Map ;
-import java.util.HashMap ;
-import java.util.Iterator ;
-import java.lang.StringBuilder ;
-import java.net.URL ; // ONLY USED to represent an URL, 
                       //not used to handle any networking activities
 
 // HTTP 1.0
@@ -120,13 +120,7 @@ public class HTTPClient{
 		this.response.setHeaders( headers ) ;
 		this.response.setCookies( cookies ) ;
 
-		// PARSING BODY
-		StringBuilder builder = new StringBuilder() ;
-		while( (line = reader.readLine() ) != null ){
-			builder.append( line + System.getProperty("line.separator")) ;
-		}
-
-		this.response.setResponseBody( builder.toString() ) ;
+		this.response.setResponseBody( IOUtils.toString( reader) ) ;
 
 		// FINISH POPULATING this.response 
 	}

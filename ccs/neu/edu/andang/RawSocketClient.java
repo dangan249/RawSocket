@@ -91,9 +91,7 @@ public class RawSocketClient{
         this.setCurrentSeqNum( this.getCurrentSeqNum() + message.length() );
 
         byte[] data = readAll().toByteArray() ;
-        System.out.println("**********") ;
-        System.out.println("data: \n" + new String(data)) ;
-        System.out.println("**********") ;
+
         InputStream is = new ByteArrayInputStream(  data );
 
         return is ;
@@ -162,21 +160,15 @@ public class RawSocketClient{
             setNumBytesReceived(packetSize - dataIndex);
 
             byte[] receivedData = Arrays.copyOfRange( responseData, dataIndex , packetSize );
-            //System.out.println("**********") ;
-            //System.out.println("data: \n" + new String( receivedData)) ;
-            //System.out.println("**********") ;
-            System.out.println("data: " + (packetSize - dataIndex )) ;
             packet.setData( receivedData );
 
         }
 
         // TODO: fix this,when packet has data, this check failed
         if( Util.verifyTCPChecksum(packet, this.sourceAddress, this.destAddress) ){
-            System.out.println( "CHECKSUM successfully" ) ;
             return packet ;
         }
-
-        System.out.println( "CHECKSUM FAILED") ;
+        System.out.println("checksum failed");
         return null ;
     }
 
@@ -257,8 +249,10 @@ public class RawSocketClient{
             returnedPacket = read() ;
             //TODO: take care of potential NullPointerException here
 
-            if( returnedPacket.isFinPacket() )
+            if( returnedPacket.isFinPacket() ) {
+                System.out.println("receiving FIN from server");
                 break ;
+            }
 
             if( returnedPacket.getData() != null ){
                 break ;
@@ -276,6 +270,10 @@ public class RawSocketClient{
         // read from socket until we see the SYN/ACK
         while(true){
             returnedPacket = read() ;
+            if( returnedPacket == null ){
+                System.out.println("bad packet");
+                continue;
+            }
             if ( returnedPacket.isAckPacket() ){
 
                 if ( type == ACK_FLAG){
@@ -316,7 +314,7 @@ public class RawSocketClient{
     private void ackPacket()  throws IOException{
         sendMessage( null,
                 this.getCurrentSeqNum() ,
-                this.getCurrentACKNum() + 1,
+                this.getCurrentACKNum() ,
                 ACK_FLAG);
     }
 
@@ -334,18 +332,26 @@ public class RawSocketClient{
 
         ByteArrayOutputStream out = new ByteArrayOutputStream( DATA_BUFFER_SIZE * 2 ) ;
 
-        TCPPacket packet = waitForData() ; // read the first packet
-        ackPacket(packet);
-        //this.setCurrentACKNum(this.getCurrentACKNum() + this.getNumBytesReceived());
+        // read the first packet
+        TCPPacket packet = waitForData() ;
+
+        if( packet.getHeader().getSequenceNumber() != this.currentACKNum ){
+            System.out.println("current ack: " + this.getCurrentACKNum());
+            System.out.println("packet seq: " + packet.getHeader().getSequenceNumber());
+            System.out.println("bytes: " + numBytesReceived);
+            System.exit(1);
+        }
+
+        this.setCurrentACKNum( this.getCurrentACKNum() + this.getNumBytesReceived() );
         this.setNumBytesReceived(0);
         out.write( packet.getData() );
-
+        ackPacket() ;
         // reading the rest
         while(true){
             try {
 
                 packet = waitForData() ;
-
+                /*
                 if( numBytesReceived < currentSize ){ // receive the last PDU
                     this.setCurrentACKNum( packet.getHeader().getSequenceNumber() );
                     ackPacket();
@@ -355,9 +361,9 @@ public class RawSocketClient{
                     tearDown( true, null );
                     break ;
                 }
-
+                  */
                 //System.out.println( "RECEIVING DATA: " + this.getNumBytesReceived() ) ;
-                if( packet.isFinPacket() )
+                if( packet.isFinPacket() ){
 
                     if( packet.getData() != null ){
                         if ( isInOrder(packet) ){
@@ -368,11 +374,12 @@ public class RawSocketClient{
                             this.setCurrentACKNum(this.getCurrentACKNum() + this.getNumBytesReceived());
                             this.setNumBytesReceived(0);
                             out.write( packet.getData() );
+
                         }
                         else{
                             continue;
                         }
-
+                    }
                     tearDown( false, packet );
                     break ;
                 }
@@ -399,8 +406,16 @@ public class RawSocketClient{
 
      // return true if this packet is in order: it is the packet we expect next
      private boolean isInOrder(TCPPacket packet){
+
+         if( !(packet.getHeader().getSequenceNumber()
+                 == this.getCurrentACKNum() )){
+             System.out.println("current ack: " + this.getCurrentACKNum());
+             System.out.println("packet seq: " + packet.getHeader().getSequenceNumber());
+             System.out.println("bytes: " + numBytesReceived);
+             System.exit(1);
+         }
          return packet.getHeader().getSequenceNumber()
-                == (this.getCurrentACKNum() + this.getNumBytesReceived());
+                == this.getCurrentACKNum() ;
     }
 
     boolean isIPSupported() throws SocketException {
@@ -430,7 +445,7 @@ public class RawSocketClient{
     private final byte SYN_FLAG = (byte) 2;
     private final byte ACK_FLAG = (byte) 16;
     private final byte ACK_FIN_FLAG = (byte) 17;
-    private final int AD_WINDOW_SIZE = 1460000;
+    private final int AD_WINDOW_SIZE = 2000;
     private final int DATA_BUFFER_SIZE = 2000 ;
     private final int IP_HEADER_SIZE = 20 ;
     private final int TCP_IP_HEADERS_MIN_SIZE = 40 ;
