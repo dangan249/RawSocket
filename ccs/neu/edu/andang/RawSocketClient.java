@@ -339,7 +339,6 @@ public class RawSocketClient{
             System.out.println("current ack: " + this.getCurrentACKNum());
             System.out.println("packet seq: " + packet.getHeader().getSequenceNumber());
             System.out.println("bytes: " + numBytesReceived);
-            System.exit(1);
         }
 
         this.setCurrentACKNum( this.getCurrentACKNum() + this.getNumBytesReceived() );
@@ -412,7 +411,6 @@ public class RawSocketClient{
              System.out.println("current ack: " + this.getCurrentACKNum());
              System.out.println("packet seq: " + packet.getHeader().getSequenceNumber());
              System.out.println("bytes: " + numBytesReceived);
-             System.exit(1);
          }
          return packet.getHeader().getSequenceNumber()
                 == this.getCurrentACKNum() ;
