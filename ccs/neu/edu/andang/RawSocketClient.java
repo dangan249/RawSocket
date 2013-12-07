@@ -31,6 +31,7 @@ public class RawSocketClient{
     private long currentACKNum ; // the number of bytes have received
     private int numBytesReceived = 0 ;
     private boolean connected = false ;
+    private int currentSize = 0 ;
     public RawSocketClient( String remoteHost, int destPort ){
 
         this.remoteHost = remoteHost ;
@@ -87,10 +88,13 @@ public class RawSocketClient{
 
         sendMessage( message, this.getCurrentSeqNum(), this.getCurrentACKNum() , ACK_FLAG);
 
-        waitForAck( ACK_FLAG ) ;
         this.setCurrentSeqNum( this.getCurrentSeqNum() + message.length() );
 
-        InputStream is = new ByteArrayInputStream( readAll().toByteArray() );
+        byte[] data = readAll().toByteArray() ;
+        System.out.println("**********") ;
+        System.out.println("data: \n" + new String(data)) ;
+        System.out.println("**********") ;
+        InputStream is = new ByteArrayInputStream(  data );
 
         return is ;
     }
@@ -152,24 +156,28 @@ public class RawSocketClient{
         }
 
         packet = new TCPPacket( header );
+
+        header.getHeaderLength() ;
         if( packetSize - 1 >  dataIndex ){
             setNumBytesReceived(packetSize - dataIndex);
-            byte[] receivedData = Arrays.copyOfRange( responseData, dataIndex , responseData.length );
+
+            byte[] receivedData = Arrays.copyOfRange( responseData, dataIndex , packetSize );
             //System.out.println("**********") ;
             //System.out.println("data: \n" + new String( receivedData)) ;
             //System.out.println("**********") ;
+            System.out.println("data: " + (packetSize - dataIndex )) ;
             packet.setData( receivedData );
 
         }
 
         // TODO: fix this,when packet has data, this check failed
         if( Util.verifyTCPChecksum(packet, this.sourceAddress, this.destAddress) ){
-            //System.out.println( "CHECKSUM successfully" ) ;
+            System.out.println( "CHECKSUM successfully" ) ;
             return packet ;
         }
 
         System.out.println( "CHECKSUM FAILED") ;
-        return packet ;
+        return null ;
     }
 
 
@@ -245,7 +253,7 @@ public class RawSocketClient{
 
         // read from socket until we see the SYN/ACK
         while(true){
-            System.out.println( "looping" ) ;
+            //System.out.println( "looping" ) ;
             returnedPacket = read() ;
             //TODO: take care of potential NullPointerException here
 
@@ -304,6 +312,14 @@ public class RawSocketClient{
                 ACK_FLAG);
     }
 
+    // used when receiving data
+    private void ackPacket()  throws IOException{
+        sendMessage( null,
+                this.getCurrentSeqNum() ,
+                this.getCurrentACKNum() + 1,
+                ACK_FLAG);
+    }
+
     // read all incoming packets until it get a complete HTML request for the server
     // the method will send back an ACK to the server if there is no error
     // Assumption: we have finished the handshake and send out the request message
@@ -311,25 +327,44 @@ public class RawSocketClient{
     // -- changing this.currentACKNum: when receiving data (NOTE: we need to + 1 with this value when ACKING)
     // -- changing this.currentSeqNum:
 
-    private ByteArrayOutputStream readAll(){
+    private ByteArrayOutputStream readAll() throws IOException{
 
         // wait for the ack of our request
         waitForAck( ACK_FLAG ) ;
 
         ByteArrayOutputStream out = new ByteArrayOutputStream( DATA_BUFFER_SIZE * 2 ) ;
-        boolean firstACK = true;
+
+        TCPPacket packet = waitForData() ; // read the first packet
+        ackPacket(packet);
+        //this.setCurrentACKNum(this.getCurrentACKNum() + this.getNumBytesReceived());
+        this.setNumBytesReceived(0);
+        out.write( packet.getData() );
+
+        // reading the rest
         while(true){
             try {
 
-                TCPPacket packet = waitForData() ;
-                System.out.println( "RECEIVING DATA: " + this.getNumBytesReceived() ) ;
-                if( !packet.isFinPacket() )
+                packet = waitForData() ;
 
-                    ackPacket(packet);
-                else{
-                    ackPacket(packet);
+                if( numBytesReceived < currentSize ){ // receive the last PDU
+                    this.setCurrentACKNum( packet.getHeader().getSequenceNumber() );
+                    ackPacket();
+                    this.setCurrentACKNum( packet.getHeader().getSequenceNumber() + numBytesReceived );
+                    this.setNumBytesReceived(0);
+                    out.write( packet.getData() );
+                    tearDown( true, null );
+                    break ;
+                }
+
+                //System.out.println( "RECEIVING DATA: " + this.getNumBytesReceived() ) ;
+                if( packet.isFinPacket() )
+
                     if( packet.getData() != null ){
                         if ( isInOrder(packet) ){
+
+                            currentSize = packet.getData().length ;
+                            ackPacket(packet); // acking the last piece
+
                             this.setCurrentACKNum(this.getCurrentACKNum() + this.getNumBytesReceived());
                             this.setNumBytesReceived(0);
                             out.write( packet.getData() );
@@ -337,17 +372,21 @@ public class RawSocketClient{
                         else{
                             continue;
                         }
-                    }
+
                     tearDown( false, packet );
                     break ;
                 }
 
                 if ( isInOrder(packet) ){
+
+                    currentSize = packet.getData().length ;
                     this.setCurrentACKNum(this.getCurrentACKNum() + this.getNumBytesReceived());
                     this.setNumBytesReceived(0);
+
                     out.write( packet.getData() );
                 }
 
+                ackPacket() ;
 
             } catch (IOException e) {
                 System.out.println( "Failed to get data from remote server: " + e.toString() ) ;
@@ -360,8 +399,8 @@ public class RawSocketClient{
 
      // return true if this packet is in order: it is the packet we expect next
      private boolean isInOrder(TCPPacket packet){
-        return (packet.getHeader().getSequenceNumber() - 1 )
-                == this.getCurrentACKNum();
+         return packet.getHeader().getSequenceNumber()
+                == (this.getCurrentACKNum() + this.getNumBytesReceived());
     }
 
     boolean isIPSupported() throws SocketException {
@@ -404,11 +443,11 @@ public class RawSocketClient{
 
     public void setCurrentSeqNum(long currentSeqNum) {
 
-        System.out.println( "**********" ) ;
+     /*   System.out.println( "**********" ) ;
         System.out.println( "SETTING SEQ NUM" ) ;
         System.out.println( "old: "  + this.getCurrentSeqNum()) ;
         System.out.println( "new: "  + currentSeqNum) ;
-        System.out.println( "**********" ) ;
+        System.out.println( "**********" ) ;*/
 
         this.currentSeqNum = currentSeqNum;
     }
@@ -419,11 +458,11 @@ public class RawSocketClient{
 
     public void setCurrentACKNum(long currentACKNum) {
 
-        System.out.println( "**********" ) ;
+/*        System.out.println( "**********" ) ;
         System.out.println( "SETTING ACK NUM" ) ;
         System.out.println( "old: "  + this.getCurrentACKNum()) ;
         System.out.println( "new: "  + currentACKNum) ;
-        System.out.println( "**********" ) ;
+        System.out.println( "**********" ) ;*/
 
         this.currentACKNum = currentACKNum;
     }
@@ -433,11 +472,11 @@ public class RawSocketClient{
     }
 
     public void setNumBytesReceived(int numBytesReceived) {
-        System.out.println( "**********" ) ;
+/*        System.out.println( "**********" ) ;
         System.out.println( "RECEIVING bytes" ) ;
         System.out.println( "old: "  + this.getNumBytesReceived()) ;
         System.out.println( "new: "  + numBytesReceived) ;
-        System.out.println( "**********" ) ;
+        System.out.println( "**********" ) ;*/
         this.numBytesReceived = numBytesReceived;
     }
 

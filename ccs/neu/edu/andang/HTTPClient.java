@@ -49,11 +49,12 @@ public class HTTPClient{
 
 		// PARSING THE FIRST LINE
 		String firstLine = reader.readLine() ;
-		if( firstLine == null || firstLine.isEmpty() ){
+		if( firstLine == null || firstLine.isEmpty() || !firstLine.contains("HTTP")){
 			throw new RuntimeException( this.request.getURL().getHost() + 
 				" does not return proper HTTP message") ;
 		}
 
+        System.out.println(firstLine) ;
 		String[] firstLineElements = firstLine.split("\\s") ;
 
 		try{
@@ -122,7 +123,7 @@ public class HTTPClient{
 		// PARSING BODY
 		StringBuilder builder = new StringBuilder() ;
 		while( (line = reader.readLine() ) != null ){
-			builder.append( line ) ;
+			builder.append( line + System.getProperty("line.separator")) ;
 		}
 
 		this.response.setResponseBody( builder.toString() ) ;

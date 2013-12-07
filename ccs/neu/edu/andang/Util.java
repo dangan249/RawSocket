@@ -151,9 +151,9 @@ public class Util{
     // return true if the checksum in the receiving header
     public static boolean verifyTCPChecksum( TCPPacket packet , InetAddress srcAddress,
                                    InetAddress dstAddress ){
-        System.out.println( "Receiving checksum: " + packet.getHeader().getChecksum()) ;
-        System.out.println( "Calculated checksum: " + Util.calculateChecksum(
-                getChecksumData( packet , srcAddress, dstAddress) )) ;
+        //System.out.println( "Receiving checksum: " + packet.getHeader().getChecksum()) ;
+        //System.out.println( "Calculated checksum: " + Util.calculateChecksum(
+        //        getChecksumData( packet , srcAddress, dstAddress) )) ;
 
         return 0 == Util.calculateChecksum(
                 getChecksumData( packet , srcAddress, dstAddress) ) ;
